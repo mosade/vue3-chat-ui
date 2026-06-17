@@ -27,6 +27,75 @@ describe('AiChat', () => {
     expect(wrapper.find('.ai-chat__message--assistant').text()).toContain('Hi there')
   })
 
+  it('renders message content as safe plain text by default', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: '**Bold** <img src=x onerror=alert(1)>',
+            status: 'done'
+          }
+        ]
+      }
+    })
+
+    const content = wrapper.find('.ai-chat__message-content')
+
+    expect(content.html()).toContain('**Bold**')
+    expect(content.find('strong').exists()).toBe(false)
+    expect(content.find('img').exists()).toBe(false)
+  })
+
+  it('renders basic markdown when markdown is enabled and escapes unsafe html', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        markdown: true,
+        defaultMessages: [
+          {
+            id: 'a1',
+            role: 'assistant',
+            content:
+              '**Bold** and `code`\n[Vue](https://vuejs.org) <img src=x onerror=alert(1)>',
+            status: 'done'
+          }
+        ]
+      }
+    })
+
+    const content = wrapper.find('.ai-chat__message-content')
+
+    expect(content.find('strong').text()).toBe('Bold')
+    expect(content.find('code').text()).toBe('code')
+    expect(content.find('a').attributes('href')).toBe('https://vuejs.org')
+    expect(content.find('br').exists()).toBe(true)
+    expect(content.find('img').exists()).toBe(false)
+    expect(content.html()).toContain('&lt;img')
+  })
+
+  it('uses custom markdown renderer output when markdown is a function', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        markdown: (content: string, message: AiChatMessage) =>
+          `<p data-message="${message.id}">${content.toUpperCase()}</p>`,
+        defaultMessages: [
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: 'custom renderer',
+            status: 'done'
+          }
+        ]
+      }
+    })
+
+    const paragraph = wrapper.find('.ai-chat__message-content p')
+
+    expect(paragraph.attributes('data-message')).toBe('a1')
+    expect(paragraph.text()).toBe('CUSTOM RENDERER')
+  })
+
   it('renders public reasoning and search traces for assistant messages', () => {
     const messages: AiChatMessage[] = [
       {

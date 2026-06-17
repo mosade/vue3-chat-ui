@@ -4,6 +4,7 @@ import ChatComposer from './ChatComposer.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatToolbar from './ChatToolbar.vue'
 import { useAiChat } from '../composables/useAiChat'
+import { renderMarkdown } from '../utils/markdown'
 import type {
   AiChatAdapter,
   AiChatError,
@@ -84,6 +85,18 @@ const regenerate = async (message: AiChatMessage) => {
     emit('regenerate', payload)
   }
 }
+
+const renderMessageContent = (message: AiChatMessage) => {
+  if (typeof props.markdown === 'function') {
+    return String(props.markdown(message.content, message))
+  }
+
+  if (props.markdown) {
+    return renderMarkdown(message.content)
+  }
+
+  return message.content
+}
 </script>
 
 <template>
@@ -104,7 +117,14 @@ const regenerate = async (message: AiChatMessage) => {
       <template #message-content="slotProps">
         <slot name="message" v-bind="slotProps">
           <slot name="message-content" v-bind="slotProps">
-            {{ slotProps.message.content }}
+            <span
+              v-if="markdown"
+              class="ai-chat__markdown"
+              v-html="renderMessageContent(slotProps.message)"
+            />
+            <template v-else>
+              {{ renderMessageContent(slotProps.message) }}
+            </template>
           </slot>
         </slot>
       </template>
