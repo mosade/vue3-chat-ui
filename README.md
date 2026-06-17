@@ -6,9 +6,9 @@
 
 - Vue 3 + TypeScript 组件包。
 - 不依赖任何 UI 组件库。
-- 提供与模型服务解耦的 `adapter` 和 `onSend` 集成方式。
+- 提供与模型服务解耦的 `adapter` 和 `sendHandler` 集成方式。
 - 支持受控和非受控消息状态。
-- 支持 assistant 流式输出、停止和重试。
+- 支持 assistant 流式输出、停止和重新生成。
 - 支持公开过程 traces，用于展示模型或后端明确提供的思考摘要、搜索进度、工具过程和来源。
 - 通过 slots 自定义渲染。
 - 使用纯 CSS 变量和稳定的 `ai-chat` class 名称进行主题定制。
@@ -146,7 +146,7 @@ const messages = ref<AiChatMessage[]>([])
 | `messages` | `AiChatMessage[]` | 受控消息列表。 |
 | `defaultMessages` | `AiChatMessage[]` | 非受控模式下的初始消息。 |
 | `adapter` | `AiChatAdapter` | 与模型服务解耦的发送 adapter。 |
-| `onSend` | `(context: AiChatSendContext) => Promise<string \| void>` | 直接发送回调。与 `adapter` 同时存在时优先使用 `onSend`。 |
+| `sendHandler` | `(context: AiChatSendContext) => Promise<string \| void>` | 直接发送回调。与 `adapter` 同时存在时优先使用 `sendHandler`。 |
 | `loading` | `boolean` | 由外部标记组件忙碌中。 |
 | `disabled` | `boolean` | 禁用聊天控件。 |
 | `placeholder` | `string` | 输入框 placeholder。 |
@@ -161,11 +161,11 @@ const messages = ref<AiChatMessage[]>([])
 | `update:messages` | `AiChatMessage[]` |
 | `send` | `prompt: string` |
 | `stop` | none |
-| `retry` | none |
+| `regenerate` | `message: AiChatMessage` |
 | `clear` | none |
 | `error` | `AiChatError`, `{ prompt, messages }` |
 
-在 Vue 模板中，`@send` 会映射到与 `onSend` prop 相同的 listener key。如果你同时需要监听 `@send` 并接入模型服务，推荐使用 `adapter`。
+使用 `sendHandler` 或 `adapter` 接入模型服务，把 `@send` 只作为发送事件监听。
 
 ## Slots
 
@@ -176,7 +176,7 @@ const messages = ref<AiChatMessage[]>([])
 | `avatar` | `{ message, index }` |
 | `message` | `{ message, index, status }` |
 | `message-content` | `{ message, index, status }` |
-| `message-actions` | `{ message, index, status }` |
+| `message-actions` | `{ message, index, status, canRegenerate, actions }` |
 | `message-traces` | `{ message, index, traces }` |
 | `message-trace` | `{ trace, message, index }` |
 | `composer-prefix` | none |
@@ -217,7 +217,7 @@ const chat = useAiChat({
 
 await chat.send('Hello')
 chat.stop()
-await chat.retry()
+await chat.regenerate(chat.messages.value[1].id)
 chat.clear()
 ```
 
@@ -228,7 +228,8 @@ chat.clear()
 - `error`
 - `send(prompt)`
 - `stop()`
-- `retry()`
+- `regenerate(messageId)`
+- `canRegenerate(message)`
 - `clear()`
 - `setMessages(messages)`
 

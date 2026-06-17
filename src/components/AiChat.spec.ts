@@ -170,7 +170,18 @@ describe('AiChat', () => {
     expect(wrapper.find('[aria-label="Stop response"]').exists()).toBe(true)
   })
 
-  it('emits update:messages, stop, retry, clear, and error events', async () => {
+  it('does not show stop controls for external loading alone', () => {
+    const wrapper = mount(AiChat, {
+      props: { loading: true }
+    })
+
+    expect(wrapper.find('textarea').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[aria-label="Stop response"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Send message"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Send message"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('emits update:messages, stop, clear, and error events', async () => {
     const send = vi.fn(async () => {
       throw new Error('No connection')
     })
@@ -184,10 +195,6 @@ describe('AiChat', () => {
 
     expect(wrapper.emitted('update:messages')).toBeTruthy()
     expect(wrapper.emitted('error')?.[0][0]).toMatchObject({ message: 'No connection' })
-
-    await wrapper.find('[aria-label="Retry last prompt"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.emitted('retry')).toBeTruthy()
 
     await wrapper.find('[aria-label="Clear messages"]').trigger('click')
     expect(wrapper.emitted('clear')).toBeTruthy()
@@ -211,6 +218,90 @@ describe('AiChat', () => {
     await flushPromises()
 
     expect(wrapper.emitted('stop')).toBeTruthy()
+  })
+
+  it('regenerates an assistant message from its message action', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce('Original answer')
+      .mockResolvedValueOnce('Regenerated answer')
+    const wrapper = mount(AiChat, {
+      props: { adapter: { send } }
+    })
+
+    await wrapper.find('textarea').setValue('Regenerate this')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    const regenerateButton = wrapper.find('[aria-label="Regenerate response"]')
+    expect(regenerateButton.exists()).toBe(true)
+
+    await regenerateButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('regenerate')?.[0][0]).toMatchObject({
+      role: 'assistant',
+      content: 'Original answer'
+    })
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send.mock.calls[1][0].prompt).toBe('Regenerate this')
+    expect(wrapper.text()).toContain('Regenerated answer')
+    expect(wrapper.text()).not.toContain('Original answer')
+  })
+
+  it('exposes regenerate actions to message action slots', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce('Original answer')
+      .mockResolvedValueOnce('Slot regenerated')
+    const wrapper = mount(AiChat, {
+      props: { adapter: { send } },
+      slots: {
+        'message-actions':
+          '<template #message-actions="{ canRegenerate, actions }"><button v-if="canRegenerate" class="slot-regenerate" @click="actions.regenerate()">Again</button></template>'
+      }
+    })
+
+    await wrapper.find('textarea').setValue('Use slot')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    await wrapper.find('.slot-regenerate').trigger('click')
+    await flushPromises()
+
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Slot regenerated')
+  })
+
+  it('supports sendHandler as the request callback while still emitting send events', async () => {
+    const sendHandler = vi.fn(async () => 'Answer from handler')
+    const wrapper = mount(AiChat, {
+      props: { sendHandler }
+    })
+
+    await wrapper.find('textarea').setValue('Use handler')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(sendHandler).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'Use handler' })
+    )
+    expect(wrapper.emitted('send')?.[0]).toEqual(['Use handler'])
+    expect(wrapper.text()).toContain('Answer from handler')
+  })
+
+  it('does not treat onSend as a request callback prop', async () => {
+    const onSend = vi.fn(async () => 'Unexpected callback')
+    const wrapper = mount(AiChat, {
+      props: { onSend }
+    })
+
+    await wrapper.find('textarea').setValue('Event only')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(onSend).toHaveBeenCalledWith('Event only')
+    expect(wrapper.text()).not.toContain('Unexpected callback')
   })
 
   it('renders customization slots', () => {

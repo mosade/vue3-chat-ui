@@ -4,7 +4,7 @@
 
 **Goal:** Build the `vue3-ai-chat` Vue 3 + TypeScript component package and a demo that showcases the reusable default UI and headless state machine.
 
-**Architecture:** The package exports typed chat primitives from `src/types.ts`, state management from `src/composables/useAiChat.ts`, and focused Vue components under `src/components/`. A Vite demo in `demo/` imports the package source directly and exercises uncontrolled, controlled, streaming, stop, retry, slots, and theming behavior.
+**Architecture:** The package exports typed chat primitives from `src/types.ts`, state management from `src/composables/useAiChat.ts`, and focused Vue components under `src/components/`. A Vite demo in `demo/` imports the package source directly and exercises uncontrolled, controlled, streaming, stop, regenerate, slots, and theming behavior.
 
 **Tech Stack:** Vue 3, TypeScript, Vite, Vitest, Vue Test Utils, vue-tsc, plain CSS.
 
@@ -16,12 +16,12 @@
 - Create `tsconfig.json`, `tsconfig.node.json`, `vite.config.ts`, `vitest.config.ts`: build, typecheck, and test setup.
 - Create `index.html`: Vite demo entry shell.
 - Create `src/types.ts`: public message, adapter, context, and error types.
-- Create `src/composables/useAiChat.ts`: provider-neutral send/stop/retry/clear state machine.
+- Create `src/composables/useAiChat.ts`: provider-neutral send/stop/regenerate/clear state machine.
 - Create `src/components/AiChat.vue`: public component that wires composable, child components, events, and slots.
 - Create `src/components/ChatMessageList.vue`: message list, empty state, auto-scroll.
 - Create `src/components/ChatMessage.vue`: role/status rendering and slots.
 - Create `src/components/ChatComposer.vue`: textarea input, Enter and Shift+Enter behavior, send/stop affordance.
-- Create `src/components/ChatToolbar.vue`: clear and retry actions plus extension slot.
+- Create `src/components/ChatToolbar.vue`: clear action plus extension slot.
 - Create `src/style.css`: default compact neutral theme using required CSS variables and stable classes.
 - Create `src/index.ts`: public exports and CSS import.
 - Create `demo/App.vue`, `demo/main.ts`, `demo/style.css`: interactive demo page.
@@ -129,7 +129,7 @@ Expected: Typecheck passes once dependencies are installed.
 
 - [ ] **Step 1: Write failing composable tests**
 
-Tests cover adding user and assistant messages on send, streaming chunk order, done status, error status and emitted error callback, stop abort behavior, retry of failed prompt, clear, and controlled update emission.
+Tests cover adding user and assistant messages on send, streaming chunk order, done status, error status and emitted error callback, stop abort behavior, regeneration of assistant messages, clear, and controlled update emission.
 
 - [ ] **Step 2: Run composable tests to verify failure**
 
@@ -139,7 +139,7 @@ Expected: FAIL because `useAiChat` does not exist yet.
 
 - [ ] **Step 3: Implement composable**
 
-Implement controlled/uncontrolled state, one active request, adapter/onSend precedence, append/update helpers, abort handling, retry, clear, and normalized errors.
+Implement controlled/uncontrolled state, one active request, adapter/sendHandler precedence, append/update helpers, abort handling, regenerate, clear, and normalized errors.
 
 - [ ] **Step 4: Export composable**
 
@@ -164,7 +164,7 @@ Expected: PASS.
 
 - [ ] **Step 1: Write failing component tests**
 
-Tests cover empty state, user and assistant rendering, Enter submit, Shift+Enter newline, disabled controls, send/stop/retry/clear/error/update events, and slot rendering.
+Tests cover empty state, user and assistant rendering, Enter submit, Shift+Enter newline, disabled controls, send/stop/regenerate/clear/error/update events, and slot rendering.
 
 - [ ] **Step 2: Run component tests to verify failure**
 
@@ -208,7 +208,7 @@ Add `import './style.css'` to `src/index.ts`.
 
 - [ ] **Step 3: Implement demo**
 
-Create a first-screen demo with an interactive chat, streaming mock adapter, stop/retry/clear controls, controlled messages preview, custom header/footer, custom avatar/content/action slots, and a small theme panel.
+Create a first-screen demo with an interactive chat, streaming mock adapter, stop/regenerate/clear controls, controlled messages preview, custom header/footer, custom avatar/content/action slots, and a small theme panel.
 
 - [ ] **Step 4: Run demo locally**
 
@@ -242,4 +242,3 @@ Expected: PASS and `dist/` contains library output and declarations.
 - [ ] **Step 4: Audit against spec**
 
 Re-read `docs/superpowers/specs/2026-06-17-ai-chat-component-design.md` and verify every public API, flow, slot, styling variable, accessibility item, error handling behavior, and testing strategy item is implemented or covered.
-

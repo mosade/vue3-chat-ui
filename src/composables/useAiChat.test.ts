@@ -135,26 +135,96 @@ describe('useAiChat', () => {
     expect(chat.isActive.value).toBe(false)
   })
 
-  it('retries the latest failed prompt', async () => {
+  it('regenerates an assistant message from its preceding user prompt', async () => {
     const onSend = vi
       .fn<(context: AiChatSendContext) => Promise<string>>()
-      .mockRejectedValueOnce(new Error('Try again'))
-      .mockResolvedValueOnce('Recovered')
+      .mockResolvedValueOnce('Original answer')
+      .mockResolvedValueOnce('Regenerated answer')
     const chat = useAiChat({ onSend })
 
     await chat.send('Original prompt')
-    await chat.retry()
+    const assistantId = chat.messages.value[1].id
+    await chat.regenerate(assistantId)
 
     expect(onSend).toHaveBeenCalledTimes(2)
-    expect(chat.messages.value[chat.messages.value.length - 2]).toMatchObject({
-      role: 'user',
-      content: 'Original prompt'
-    })
-    expect(chat.messages.value[chat.messages.value.length - 1]).toMatchObject({
+    expect(onSend.mock.calls[1][0].prompt).toBe('Original prompt')
+    expect(chat.messages.value).toHaveLength(2)
+    expect(chat.messages.value[1]).toMatchObject({
+      id: assistantId,
       role: 'assistant',
-      content: 'Recovered',
+      content: 'Regenerated answer',
       status: 'done'
     })
+  })
+
+  it('drops messages after the regenerated assistant message', async () => {
+    const onSend = vi
+      .fn<(context: AiChatSendContext) => Promise<string>>()
+      .mockResolvedValueOnce('First answer')
+      .mockResolvedValueOnce('Second answer')
+      .mockResolvedValueOnce('First regenerated')
+    const chat = useAiChat({ onSend })
+
+    await chat.send('First prompt')
+    const firstAssistantId = chat.messages.value[1].id
+    await chat.send('Second prompt')
+    await chat.regenerate(firstAssistantId)
+
+    expect(onSend).toHaveBeenCalledTimes(3)
+    expect(onSend.mock.calls[2][0].prompt).toBe('First prompt')
+    expect(chat.messages.value).toHaveLength(2)
+    expect(chat.messages.value[1]).toMatchObject({
+      id: firstAssistantId,
+      role: 'assistant',
+      content: 'First regenerated',
+      status: 'done'
+    })
+  })
+
+  it('marks regenerated assistant messages as error when regeneration fails', async () => {
+    const onSend = vi
+      .fn<(context: AiChatSendContext) => Promise<string>>()
+      .mockResolvedValueOnce('Original answer')
+      .mockRejectedValueOnce(new Error('Regenerate failed'))
+    const onError = vi.fn()
+    const chat = useAiChat({ onSend, onError })
+
+    await chat.send('Original prompt')
+    const assistantId = chat.messages.value[1].id
+    await chat.regenerate(assistantId)
+
+    expect(chat.messages.value[1]).toMatchObject({
+      id: assistantId,
+      role: 'assistant',
+      content: 'Regenerate failed',
+      status: 'error'
+    })
+    expect(onError).toHaveBeenCalledWith(
+      { message: 'Regenerate failed', cause: expect.any(Error) },
+      expect.objectContaining({ prompt: 'Original prompt' })
+    )
+  })
+
+  it('does not regenerate non-assistant messages or messages without a preceding user prompt', async () => {
+    const onSend = vi.fn<(context: AiChatSendContext) => Promise<string>>()
+    const chat = useAiChat({
+      defaultMessages: [
+        { id: 'system-1', role: 'system', content: 'Start' },
+        { id: 'assistant-1', role: 'assistant', content: 'No prompt' },
+        { id: 'user-1', role: 'user', content: 'Hello' }
+      ],
+      onSend
+    })
+
+    expect(chat.canRegenerate(chat.messages.value[0])).toBe(false)
+    expect(chat.canRegenerate(chat.messages.value[1])).toBe(false)
+    expect(chat.canRegenerate(chat.messages.value[2])).toBe(false)
+
+    await chat.regenerate('system-1')
+    await chat.regenerate('assistant-1')
+    await chat.regenerate('user-1')
+
+    expect(onSend).not.toHaveBeenCalled()
   })
 
   it('clears messages and aborts an active request', async () => {

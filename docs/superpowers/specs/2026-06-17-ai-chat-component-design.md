@@ -4,13 +4,13 @@
 
 Build a reusable Vue 3 AI chat component package named `vue3-ai-chat`. The package provides a complete default chat UI and a headless composable for advanced consumers. It must not depend on any UI component library and must not bind itself to a specific AI provider.
 
-The first version focuses on a strong base chat experience: message rendering, prompt input, send/stop/retry flows, streaming assistant output, error states, controlled and uncontrolled message state, slots for customization, and CSS variables for theming.
+The first version focuses on a strong base chat experience: message rendering, prompt input, send/stop/regenerate flows, streaming assistant output, error states, controlled and uncontrolled message state, slots for customization, and CSS variables for theming.
 
 ## Goals
 
 - Provide a Vue 3 + TypeScript component that can be published and reused across projects.
 - Avoid all UI component library dependencies.
-- Keep model and backend integration outside the core component through an adapter or `onSend` callback.
+- Keep model and backend integration outside the core component through an adapter or `sendHandler` callback.
 - Support both simple usage and fully controlled business usage.
 - Allow teams to customize rendering without forking the component.
 - Keep the first version small enough to implement and test cleanly.
@@ -66,7 +66,7 @@ Responsibilities:
 - Render optional header and footer slots.
 - Connect message list, composer, and toolbar.
 - Normalize controlled and uncontrolled usage.
-- Forward send, retry, stop, clear, and error events.
+- Forward send, regenerate, stop, clear, and error events.
 
 ### `ChatMessageList.vue`
 
@@ -111,7 +111,6 @@ Provides optional actions around the chat state.
 Responsibilities:
 
 - Clear all messages.
-- Retry the latest failed or assistant response.
 - Provide extension points for future actions.
 
 ### `useAiChat.ts`
@@ -127,7 +126,7 @@ Responsibilities:
 - Append streamed content.
 - Mark messages as pending, streaming, done, or error.
 - Abort active requests.
-- Retry the last prompt when possible.
+- Regenerate a selected assistant message from its preceding user prompt.
 - Surface errors in a consistent shape.
 
 ## Public Types
@@ -171,7 +170,7 @@ export interface AiChatError {
 - `messages?: AiChatMessage[]`
 - `defaultMessages?: AiChatMessage[]`
 - `adapter?: AiChatAdapter`
-- `onSend?: (context: AiChatSendContext) => Promise<string | void>`
+- `sendHandler?: (context: AiChatSendContext) => Promise<string | void>`
 - `loading?: boolean`
 - `disabled?: boolean`
 - `placeholder?: string`
@@ -179,14 +178,14 @@ export interface AiChatError {
 - `autoScroll?: boolean`
 - `markdown?: boolean | ((content: string, message: AiChatMessage) => unknown)`
 
-`adapter` and `onSend` are alternative integration points. If both are provided, `onSend` takes precedence because it is more direct and easier to inspect.
+`adapter` and `sendHandler` are alternative integration points. If both are provided, `sendHandler` takes precedence because it is more direct and easier to inspect.
 
 ### Events
 
 - `update:messages`
 - `send`
 - `stop`
-- `retry`
+- `regenerate`
 - `clear`
 - `error`
 
@@ -220,14 +219,23 @@ This makes simple demos concise while preserving full control for persistence, s
 2. Component creates a `user` message with status `done`.
 3. Component creates an `assistant` placeholder message with status `pending`.
 4. Component creates an `AbortController` for this request.
-5. Component calls `onSend` or `adapter.send`.
+5. Component calls `sendHandler` or `adapter.send`.
 6. When the request calls `append(chunk)`, the assistant message becomes `streaming` and appends the chunk.
 7. If the request resolves with a string, that string is appended or used as the final assistant content depending on whether chunks were already received.
 8. On success, assistant status becomes `done`.
 9. On failure, assistant status becomes `error` and an `error` event is emitted.
 10. On stop, the request is aborted. Existing streamed content is kept and the active request is cleared.
 
-Only one active request is supported in version 1. This keeps cancellation, retry, loading state, and UI behavior predictable.
+Only one active request is supported in version 1. This keeps cancellation, regeneration, loading state, and UI behavior predictable.
+
+## Regenerate Flow
+
+1. User triggers regenerate on an assistant message.
+2. Component finds the nearest preceding user message and uses it as the prompt.
+3. Component drops messages after the selected assistant message to avoid inconsistent follow-up context.
+4. Component keeps the selected assistant message id, clears its content and traces, and marks it `pending`.
+5. Component calls `sendHandler` or `adapter.send`.
+6. Streaming, success, stop, and error handling follow the same assistant request path as normal send.
 
 ## Markdown Strategy
 
@@ -294,7 +302,7 @@ The component should:
 - Mark the assistant placeholder as `error`.
 - Preserve the user prompt that caused the error.
 - Emit `error` with the normalized error and relevant context.
-- Allow retrying the failed prompt.
+- Allow regenerating an assistant response, including a failed response.
 - Avoid swallowing abort errors as normal failures when the user intentionally stops generation.
 
 ## Testing Strategy
@@ -306,7 +314,8 @@ Unit tests for `useAiChat`:
 - Marks completion as `done`.
 - Marks failures as `error`.
 - Aborts an active request.
-- Retries the latest failed prompt.
+- Regenerates a selected assistant message.
+- Drops follow-up messages after the regenerated assistant message.
 - Emits updates in controlled mode.
 
 Component tests:
@@ -316,7 +325,7 @@ Component tests:
 - Submits composer input with Enter.
 - Inserts newline with Shift+Enter.
 - Disables controls while disabled or active.
-- Emits `update:messages`, `send`, `stop`, `retry`, `clear`, and `error`.
+- Emits `update:messages`, `send`, `stop`, `regenerate`, `clear`, and `error`.
 - Renders customization slots.
 
 Type checks:

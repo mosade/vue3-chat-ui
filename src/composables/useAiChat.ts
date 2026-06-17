@@ -25,7 +25,8 @@ export interface UseAiChatReturn {
   error: Ref<AiChatError | null>
   send: (prompt: string) => Promise<void>
   stop: () => void
-  retry: () => Promise<void>
+  regenerate: (messageId: string) => Promise<void>
+  canRegenerate: (message: AiChatMessage) => boolean
   clear: () => void
   setMessages: (messages: AiChatMessage[]) => void
 }
@@ -59,7 +60,6 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
   const internalMessages = ref<AiChatMessage[]>([...(options.defaultMessages ?? [])])
   const activeRequest = ref<ActiveRequest | null>(null)
   const error = ref<AiChatError | null>(null)
-  const lastPrompt = ref('')
 
   const isControlled = computed(() => Array.isArray(unref(options.messages)))
 
@@ -149,6 +149,21 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     )
   }
 
+  const findPrecedingUserMessage = (messageId: string) => {
+    const messageIndex = messages.value.findIndex((message) => message.id === messageId)
+    if (messageIndex < 0) {
+      return undefined
+    }
+
+    return messages.value
+      .slice(0, messageIndex)
+      .reverse()
+      .find((message) => message.role === 'user')
+  }
+
+  const canRegenerate = (message: AiChatMessage) =>
+    message.role === 'assistant' && !activeRequest.value && Boolean(findPrecedingUserMessage(message.id))
+
   const stop = () => {
     const request = activeRequest.value
     if (!request) {
@@ -160,13 +175,75 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     activeRequest.value = null
   }
 
+  const runAssistantRequest = async (prompt: string, assistantId: string) => {
+    const sendHandler = options.onSend ?? options.adapter?.send
+    const controller = new AbortController()
+
+    error.value = null
+    activeRequest.value = {
+      controller,
+      assistantId
+    }
+
+    if (!sendHandler) {
+      updateMessage(assistantId, { status: 'done' })
+      activeRequest.value = null
+      return
+    }
+
+    try {
+      const context: AiChatSendContext = {
+        prompt,
+        messages: messages.value,
+        signal: controller.signal,
+        append: (chunk) => appendToMessage(assistantId, chunk),
+        update: (message) => updateMessage(assistantId, message),
+        appendTrace: (trace) => appendTraceToMessage(assistantId, trace),
+        updateTrace: (id, trace) => updateTraceInMessage(assistantId, id, trace)
+      }
+      const result = await sendHandler(context)
+
+      if (controller.signal.aborted) {
+        updateMessage(assistantId, { status: 'done' })
+        return
+      }
+
+      if (typeof result === 'string' && result.length > 0) {
+        const current = messages.value.find((message) => message.id === assistantId)
+        if (current?.content) {
+          appendToMessage(assistantId, result)
+        } else {
+          updateMessage(assistantId, { content: result })
+        }
+      }
+
+      updateMessage(assistantId, { status: 'done' })
+    } catch (cause) {
+      if (controller.signal.aborted || isAbortError(cause)) {
+        updateMessage(assistantId, { status: 'done' })
+        return
+      }
+
+      const normalized = normalizeError(cause)
+      error.value = normalized
+      updateMessage(assistantId, {
+        content: normalized.message,
+        status: 'error'
+      })
+      options.onError?.(normalized, { prompt, messages: messages.value })
+    } finally {
+      if (activeRequest.value?.assistantId === assistantId) {
+        activeRequest.value = null
+      }
+    }
+  }
+
   const send = async (rawPrompt: string) => {
     const prompt = rawPrompt.trim()
     if (!prompt || activeRequest.value) {
       return
     }
 
-    const sendHandler = options.onSend ?? options.adapter?.send
     const userMessage: AiChatMessage = {
       id: createId(),
       role: 'user',
@@ -181,75 +258,35 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
       status: 'pending',
       createdAt: Date.now()
     }
-    const controller = new AbortController()
 
-    error.value = null
-    lastPrompt.value = prompt
     messages.value = [...messages.value, userMessage, assistantMessage]
-    activeRequest.value = {
-      controller,
-      assistantId: assistantMessage.id
-    }
-
-    if (!sendHandler) {
-      updateMessage(assistantMessage.id, { status: 'done' })
-      activeRequest.value = null
-      return
-    }
-
-    try {
-      const context: AiChatSendContext = {
-        prompt,
-        messages: messages.value,
-        signal: controller.signal,
-        append: (chunk) => appendToMessage(assistantMessage.id, chunk),
-        update: (message) => updateMessage(assistantMessage.id, message),
-        appendTrace: (trace) => appendTraceToMessage(assistantMessage.id, trace),
-        updateTrace: (id, trace) => updateTraceInMessage(assistantMessage.id, id, trace)
-      }
-      const result = await sendHandler(context)
-
-      if (controller.signal.aborted) {
-        updateMessage(assistantMessage.id, { status: 'done' })
-        return
-      }
-
-      if (typeof result === 'string' && result.length > 0) {
-        const current = messages.value.find((message) => message.id === assistantMessage.id)
-        if (current?.content) {
-          appendToMessage(assistantMessage.id, result)
-        } else {
-          updateMessage(assistantMessage.id, { content: result })
-        }
-      }
-
-      updateMessage(assistantMessage.id, { status: 'done' })
-    } catch (cause) {
-      if (controller.signal.aborted || isAbortError(cause)) {
-        updateMessage(assistantMessage.id, { status: 'done' })
-        return
-      }
-
-      const normalized = normalizeError(cause)
-      error.value = normalized
-      updateMessage(assistantMessage.id, {
-        content: normalized.message,
-        status: 'error'
-      })
-      options.onError?.(normalized, { prompt, messages: messages.value })
-    } finally {
-      if (activeRequest.value?.assistantId === assistantMessage.id) {
-        activeRequest.value = null
-      }
-    }
+    await runAssistantRequest(prompt, assistantMessage.id)
   }
 
-  const retry = async () => {
-    if (!lastPrompt.value || activeRequest.value) {
+  const regenerate = async (messageId: string) => {
+    const target = messages.value.find((message) => message.id === messageId)
+    if (!target || !canRegenerate(target)) {
       return
     }
 
-    await send(lastPrompt.value)
+    const userMessage = findPrecedingUserMessage(messageId)
+    if (!userMessage) {
+      return
+    }
+
+    const targetIndex = messages.value.findIndex((message) => message.id === messageId)
+    messages.value = messages.value.slice(0, targetIndex + 1).map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            content: '',
+            status: 'pending',
+            traces: []
+          }
+        : message
+    )
+
+    await runAssistantRequest(userMessage.content, messageId)
   }
 
   const clear = () => {
@@ -268,7 +305,8 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     error,
     send,
     stop,
-    retry,
+    regenerate,
+    canRegenerate,
     clear,
     setMessages
   }

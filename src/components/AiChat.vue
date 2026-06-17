@@ -16,7 +16,7 @@ const props = withDefaults(
     messages?: AiChatMessage[]
     defaultMessages?: AiChatMessage[]
     adapter?: AiChatAdapter
-    onSend?: (context: AiChatSendContext) => Promise<string | void>
+    sendHandler?: (context: AiChatSendContext) => Promise<string | void>
     loading?: boolean
     disabled?: boolean
     placeholder?: string
@@ -28,7 +28,7 @@ const props = withDefaults(
     messages: undefined,
     defaultMessages: undefined,
     adapter: undefined,
-    onSend: undefined,
+    sendHandler: undefined,
     loading: false,
     disabled: false,
     placeholder: 'Ask anything...',
@@ -42,7 +42,7 @@ const emit = defineEmits<{
   'update:messages': [messages: AiChatMessage[]]
   send: [prompt: string]
   stop: []
-  retry: []
+  regenerate: [message: AiChatMessage]
   clear: []
   error: [error: AiChatError, context: { prompt: string; messages: AiChatMessage[] }]
 }>()
@@ -51,7 +51,7 @@ const chat = useAiChat({
   messages: toRef(props, 'messages'),
   defaultMessages: props.defaultMessages,
   onSend: (context) => {
-    const sendHandler = props.onSend ?? props.adapter?.send
+    const sendHandler = props.sendHandler ?? props.adapter?.send
     return sendHandler?.(context) ?? Promise.resolve()
   },
   onUpdateMessages: (nextMessages) => emit('update:messages', nextMessages),
@@ -60,12 +60,10 @@ const chat = useAiChat({
 
 const isBusy = computed(() => props.loading || chat.isActive.value)
 const isDisabled = computed(() => props.disabled)
-const canRetry = computed(() => chat.messages.value.some((message) => message.status === 'error'))
+const isActive = computed(() => chat.isActive.value)
 
 const submit = async (prompt: string) => {
-  if (!props.onSend) {
-    emit('send', prompt)
-  }
+  emit('send', prompt)
   await chat.send(prompt)
 }
 
@@ -74,14 +72,14 @@ const stop = () => {
   chat.stop()
 }
 
-const retry = async () => {
-  emit('retry')
-  await chat.retry()
-}
-
 const clear = () => {
   emit('clear')
   chat.clear()
+}
+
+const regenerate = async (message: AiChatMessage) => {
+  emit('regenerate', message)
+  await chat.regenerate(message.id)
 }
 </script>
 
@@ -91,12 +89,7 @@ const clear = () => {
       <slot name="header" :messages="chat.messages.value" :active="isBusy" />
     </header>
 
-    <ChatToolbar
-      :disabled="isDisabled || isBusy"
-      :can-retry="canRetry"
-      @retry="retry"
-      @clear="clear"
-    />
+    <ChatToolbar :disabled="isDisabled || isBusy" @clear="clear" />
 
     <ChatMessageList :messages="chat.messages.value" :auto-scroll="autoScroll">
       <template #empty>
@@ -113,7 +106,22 @@ const clear = () => {
         </slot>
       </template>
       <template #message-actions="slotProps">
-        <slot name="message-actions" v-bind="slotProps" />
+        <slot
+          name="message-actions"
+          v-bind="slotProps"
+          :can-regenerate="chat.canRegenerate(slotProps.message)"
+          :actions="{ regenerate: () => regenerate(slotProps.message) }"
+        >
+          <button
+            v-if="chat.canRegenerate(slotProps.message)"
+            class="ai-chat__button ai-chat__button--secondary"
+            type="button"
+            aria-label="Regenerate response"
+            @click="regenerate(slotProps.message)"
+          >
+            Regenerate
+          </button>
+        </slot>
       </template>
       <template #message-traces="slotProps">
         <slot name="message-traces" v-bind="slotProps" />
@@ -125,7 +133,7 @@ const clear = () => {
 
     <ChatComposer
       :disabled="isDisabled || isBusy"
-      :active="isBusy"
+      :active="isActive"
       :placeholder="placeholder"
       :auto-focus="autoFocus"
       @submit="submit"

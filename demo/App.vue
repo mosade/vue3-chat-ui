@@ -10,7 +10,7 @@ const messages = ref<AiChatMessage[]>([
     id: 'welcome',
     role: 'assistant',
     content:
-      'This demo uses a local mock adapter. Try sending a prompt, stopping the stream, retrying an error, clearing messages, and switching the theme.',
+      'This demo uses a local mock adapter. Try sending a prompt, stopping the stream, regenerating a response, clearing messages, and switching the theme.',
     status: 'done'
   }
 ])
@@ -97,7 +97,7 @@ const sendDemoMessage = async ({
   if (failNext.value) {
     failNext.value = false
     await wait(800, signal)
-    throw new Error('Demo adapter failed on purpose. Press Retry last prompt.')
+    throw new Error('Demo adapter failed on purpose. Regenerate the failed response.')
   }
 
   const thinkingTrace = appendTrace({
@@ -275,9 +275,9 @@ const shadcnMessageCount = computed(() => shadcnMessages.value.length)
             <p class="demo-message-text">{{ message.content || 'Thinking...' }}</p>
           </template>
 
-          <template #message-actions="{ message }">
+          <!-- <template #message-actions="{ message }">
             <span>{{ message.status ?? 'done' }}</span>
-          </template>
+          </template> -->
 
           <template #message-trace="{ trace }">
             <div class="demo-trace-card">
@@ -329,7 +329,7 @@ const shadcnMessageCount = computed(() => shadcnMessages.value.length)
             <span class="shadcn-demo__label">Conversation</span>
             <strong>Component styling audit</strong>
             <p>
-              Controlled messages, retryable errors, and streaming output remain
+              Controlled messages, regenerable responses, and streaming output remain
               wired through the shared adapter contract.
             </p>
           </div>
