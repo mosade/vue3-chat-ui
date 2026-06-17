@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { AiChat, type AiChatMessage, type AiChatSendContext } from '../src'
+import ShadcnDemo from './ShadcnDemo.vue'
 
 type DemoVariant = 'default' | 'shadcn'
 
@@ -24,31 +25,8 @@ const messages = ref<AiChatMessage[]>([
     ]
   }
 ])
-const shadcnMessages = ref<AiChatMessage[]>([
-  {
-    id: 'shadcn-welcome',
-    role: 'assistant',
-    content:
-      'This variant keeps the same AiChat component and restyles it with slots plus CSS variables for a shadcn-inspired product surface.',
-    status: 'done'
-  },
-  {
-    id: 'shadcn-user',
-    role: 'user',
-    content: 'Show me how the component adapts to another design system.',
-    status: 'done'
-  },
-  {
-    id: 'shadcn-assistant',
-    role: 'assistant',
-    content:
-      'The message list, composer, toolbar, and state machine are unchanged. The surrounding app swaps density, borders, muted backgrounds, badges, and slot content.',
-    status: 'done'
-  }
-])
 const compactTheme = ref(false)
 const failNext = ref(false)
-const shadcnFailNext = ref(false)
 
 const themeStyle = computed(() =>
   compactTheme.value
@@ -160,54 +138,7 @@ const sendDemoMessage = async ({
   })
 }
 
-const sendShadcnMessage = async ({
-  prompt,
-  append,
-  appendTrace,
-  updateTrace,
-  signal
-}: AiChatSendContext) => {
-  if (shadcnFailNext.value) {
-    shadcnFailNext.value = false
-    await wait(240, signal)
-    throw new Error('The shadcn-style adapter returned a demo error.')
-  }
-
-  const traceId = appendTrace({
-    kind: 'tool',
-    title: 'Reading workspace',
-    content: 'Inspecting package exports, demo state, and style tokens.',
-    status: 'pending',
-    items: ['src/index.ts', 'demo/style.css']
-  })
-  await wait(220, signal)
-  updateTrace(traceId, {
-    content: 'Workspace inspection complete. No external provider is required.',
-    status: 'done'
-  })
-
-  appendTrace({
-    kind: 'source',
-    title: 'Source notes',
-    content: 'This is a mock trace supplied by adapter code, not hidden reasoning.',
-    status: 'done',
-    items: ['AiChatSendContext.appendTrace', 'AiChatSendContext.updateTrace']
-  })
-
-  const chunks = [
-    `Prompt received: ${prompt}. `,
-    'This view uses a restrained neutral palette, thin borders, compact spacing, ',
-    'and slot-rendered badges to feel closer to a shadcn/ui dashboard.'
-  ]
-
-  for (const chunk of chunks) {
-    await wait(220, signal)
-    append(chunk)
-  }
-}
-
 const messageCount = computed(() => messages.value.length)
-const shadcnMessageCount = computed(() => shadcnMessages.value.length)
 const prefillComposer = () => {
   composerInput.value = 'Summarize the new AiChat features with sources.'
 }
@@ -369,121 +300,6 @@ const recordPersist = (
       </section>
     </section>
 
-    <section v-else class="shadcn-demo">
-      <header class="shadcn-demo__topbar">
-        <div>
-          <p class="shadcn-demo__eyebrow">vue3-ai-chat slots + variables</p>
-          <h1>shadcn-style workspace</h1>
-          <p>
-            A second demo surface using the same component API with a quieter,
-            border-led interface.
-          </p>
-        </div>
-
-        <div class="shadcn-demo__actions">
-          <span class="shadcn-demo__badge">Mock adapter</span>
-          <button type="button" class="shadcn-demo__button" @click="shadcnFailNext = true">
-            Fail next
-          </button>
-        </div>
-      </header>
-
-      <section class="shadcn-demo__grid">
-        <aside class="shadcn-demo__sidebar" aria-label="Conversation metadata">
-          <div class="shadcn-demo__section">
-            <span class="shadcn-demo__label">Conversation</span>
-            <strong>Component styling audit</strong>
-            <p>
-              Controlled messages, regenerable responses, and streaming output remain
-              wired through the shared adapter contract.
-            </p>
-          </div>
-
-          <div class="shadcn-demo__metrics">
-            <div>
-              <span>Messages</span>
-              <strong>{{ shadcnMessageCount }}</strong>
-            </div>
-            <div>
-              <span>Status</span>
-              <strong>{{ shadcnFailNext ? 'Fail armed' : 'Ready' }}</strong>
-            </div>
-          </div>
-
-          <pre class="shadcn-demo__state">{{
-            JSON.stringify(shadcnMessages.slice(-4), null, 2)
-          }}</pre>
-        </aside>
-
-        <section class="shadcn-demo__chat">
-          <AiChat
-            v-model:messages="shadcnMessages"
-            :adapter="{ send: sendShadcnMessage }"
-            placeholder="Message the shadcn-style assistant..."
-          >
-            <template #header="{ active }">
-              <div class="shadcn-chat-header">
-                <div>
-                  <strong>Design System Assistant</strong>
-                  <span>{{ active ? 'Streaming response' : 'Ready for prompt' }}</span>
-                </div>
-                <span class="shadcn-demo__badge" :data-active="active">
-                  {{ active ? 'Live' : 'Idle' }}
-                </span>
-              </div>
-            </template>
-
-            <template #empty>
-              <div class="shadcn-empty">
-                <strong>No messages</strong>
-                <span>Start a conversation to test the shadcn-style skin.</span>
-              </div>
-            </template>
-
-            <template #avatar="{ message }">
-              <span class="shadcn-avatar">{{ message.role === 'user' ? 'ME' : 'AI' }}</span>
-            </template>
-
-            <template #message-content="{ message }">
-              <p class="shadcn-message-copy">{{ message.content || 'Thinking...' }}</p>
-            </template>
-
-            <template #message-actions="{ message }">
-              <span class="shadcn-message-status">{{ message.status ?? 'done' }}</span>
-            </template>
-
-            <template #message-trace="{ trace }">
-              <div class="shadcn-trace-row">
-                <span class="shadcn-trace-row__kind">{{ trace.kind }}</span>
-                <div>
-                  <strong>{{ trace.title }}</strong>
-                  <p v-if="trace.content">{{ trace.content }}</p>
-                  <small v-if="trace.items?.length">{{ trace.items.join(' / ') }}</small>
-                </div>
-                <span v-if="trace.status" class="shadcn-message-status">{{ trace.status }}</span>
-              </div>
-            </template>
-
-            <template #composer-prefix>
-              <span class="shadcn-composer-prefix">⌘</span>
-            </template>
-
-            <template #composer-actions>
-              <button
-                class="shadcn-demo__button shadcn-demo__button--ghost"
-                type="button"
-                @click="shadcnFailNext = true"
-              >
-                Error
-              </button>
-            </template>
-
-            <template #footer>
-              Built from the same AiChat slots, adapter, and controlled message model.
-            </template>
-          </AiChat>
-        </section>
-      </section>
-    </section>
+    <ShadcnDemo v-else />
   </main>
 </template>

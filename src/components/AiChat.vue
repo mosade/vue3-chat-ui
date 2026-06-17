@@ -163,41 +163,41 @@ const renderMessageContent = (message: AiChatMessage) => {
         <slot name="avatar" v-bind="slotProps" />
       </template>
       <template #message-content="slotProps">
-        <slot name="message" v-bind="slotProps">
-          <slot name="message-content" v-bind="slotProps">
-            <form
-              v-if="editingMessageId === slotProps.message.id"
-              class="ai-chat__message-edit"
-              @submit.prevent="saveEdit(slotProps.message)"
+        <form
+          v-if="editingMessageId === slotProps.message.id"
+          class="ai-chat__message-edit"
+          @submit.prevent="saveEdit(slotProps.message)"
+        >
+          <textarea
+            v-model="editingContent"
+            class="ai-chat__composer-input"
+            aria-label="Edit message content"
+            rows="2"
+          />
+          <div class="ai-chat__message-edit-actions">
+            <button
+              class="ai-chat__button"
+              type="button"
+              aria-label="Save edited message"
+              :disabled="isDisabled || isBusy || !editingContent.trim()"
+              @click="saveEdit(slotProps.message)"
             >
-              <textarea
-                v-model="editingContent"
-                class="ai-chat__composer-input"
-                aria-label="Edit message content"
-                rows="2"
-              />
-              <div class="ai-chat__message-edit-actions">
-                <button
-                  class="ai-chat__button"
-                  type="button"
-                  aria-label="Save edited message"
-                  :disabled="isDisabled || isBusy || !editingContent.trim()"
-                  @click="saveEdit(slotProps.message)"
-                >
-                  Save
-                </button>
-                <button
-                  class="ai-chat__button ai-chat__button--secondary"
-                  type="button"
-                  aria-label="Cancel edit"
-                  @click="cancelEdit"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+              Save
+            </button>
+            <button
+              class="ai-chat__button ai-chat__button--secondary"
+              type="button"
+              aria-label="Cancel edit"
+              @click="cancelEdit"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+        <slot v-else name="message" v-bind="slotProps">
+          <slot name="message-content" v-bind="slotProps">
             <span
-              v-else-if="markdown"
+              v-if="markdown"
               class="ai-chat__markdown"
               v-html="renderMessageContent(slotProps.message)"
             />

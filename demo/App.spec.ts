@@ -1,9 +1,17 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import App from './App.vue'
 
 describe('demo App', () => {
+  beforeEach(() => {
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn()
+      }
+    })
+  })
+
   it('switches to the shadcn-style demo variant', async () => {
     const wrapper = mount(App)
 
@@ -13,6 +21,29 @@ describe('demo App', () => {
 
     expect(wrapper.text()).toContain('shadcn-style workspace')
     expect(wrapper.find('.shadcn-demo .ai-chat').exists()).toBe(true)
+  })
+
+  it('renders custom shadcn message action UI', async () => {
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+
+    expect(wrapper.find('.shadcn-message-actions').exists()).toBe(true)
+    expect(wrapper.find('[data-shadcn-action="copy"]').exists()).toBe(true)
+    expect(wrapper.find('[data-shadcn-action="edit"]').exists()).toBe(true)
+    expect(wrapper.find('[data-shadcn-action="regenerate"]').exists()).toBe(true)
+  })
+
+  it('renders a custom shadcn retry action for errored responses', async () => {
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+    await wrapper.find('.shadcn-demo__actions .shadcn-demo__button').trigger('click')
+    await wrapper.find('textarea').setValue('Make this fail')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await new Promise((resolve) => setTimeout(resolve, 280))
+
+    expect(wrapper.find('[data-shadcn-action="retry"]').exists()).toBe(true)
   })
 
   it('does not show process traces before the user sends a message', () => {

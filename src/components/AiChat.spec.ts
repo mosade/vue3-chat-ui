@@ -538,6 +538,25 @@ describe('AiChat', () => {
     expect(wrapper.text()).not.toContain('Original answer')
   })
 
+  it('shows the built-in edit form when a custom message content slot is present', async () => {
+    const send = vi.fn(async () => 'Answer')
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [{ id: 'u1', role: 'user', content: 'Editable text', status: 'done' }],
+        adapter: { send }
+      },
+      slots: {
+        'message-content':
+          '<template #message-content="{ message }"><p class="custom-content">{{ message.content }}</p></template>'
+      }
+    })
+
+    await wrapper.find('[aria-label="Edit message"]').trigger('click')
+
+    expect(wrapper.find('[aria-label="Edit message content"]').exists()).toBe(true)
+    expect(wrapper.find('.custom-content').exists()).toBe(false)
+  })
+
   it('supports sendHandler as the request callback while still emitting send events', async () => {
     const sendHandler = vi.fn(async () => 'Answer from handler')
     const wrapper = mount(AiChat, {
