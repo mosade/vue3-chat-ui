@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(
   defineProps<{
+    input?: string
+    defaultInput?: string
     disabled?: boolean
     active?: boolean
     placeholder?: string
     autoFocus?: boolean
   }>(),
   {
+    input: undefined,
+    defaultInput: '',
     disabled: false,
     active: false,
     placeholder: 'Ask anything...',
@@ -17,16 +21,41 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+  'update:input': [value: string]
   submit: [prompt: string]
   stop: []
 }>()
 
-const draft = ref('')
+const internalDraft = ref(props.defaultInput)
 const textarea = ref<HTMLTextAreaElement | null>(null)
+const isControlled = computed(() => props.input !== undefined)
+const draft = computed({
+  get() {
+    return isControlled.value ? props.input ?? '' : internalDraft.value
+  },
+  set(value: string) {
+    if (!isControlled.value) {
+      internalDraft.value = value
+    }
+
+    emit('update:input', value)
+  }
+})
+
+watch(
+  () => props.defaultInput,
+  (value) => {
+    if (!isControlled.value) {
+      internalDraft.value = value
+    }
+  }
+)
+
+const canSubmit = computed(() => Boolean(draft.value.trim()) && !props.disabled && !props.active)
 
 const submit = () => {
   const prompt = draft.value.trim()
-  if (!prompt || props.disabled || props.active) {
+  if (!canSubmit.value) {
     return
   }
 
@@ -51,11 +80,21 @@ onMounted(async () => {
   await nextTick()
   textarea.value?.focus()
 })
+
+defineExpose({
+  focus: () => textarea.value?.focus(),
+  submit
+})
 </script>
 
 <template>
   <form class="ai-chat__composer" @submit.prevent="submit">
-    <slot name="prefix" />
+    <slot
+      name="prefix"
+      :draft="draft"
+      :can-submit="canSubmit"
+      :actions="{ submit, stop: () => emit('stop'), focus: () => textarea?.focus() }"
+    />
 
     <textarea
       ref="textarea"
@@ -69,7 +108,12 @@ onMounted(async () => {
     />
 
     <div class="ai-chat__composer-actions">
-      <slot name="actions" />
+      <slot
+        name="actions"
+        :draft="draft"
+        :can-submit="canSubmit"
+        :actions="{ submit, stop: () => emit('stop'), focus: () => textarea?.focus() }"
+      />
 
       <button
         v-if="active"
@@ -85,7 +129,7 @@ onMounted(async () => {
         class="ai-chat__button"
         type="submit"
         aria-label="Send message"
-        :disabled="disabled || !draft.trim()"
+        :disabled="!canSubmit"
       >
         Send
       </button>

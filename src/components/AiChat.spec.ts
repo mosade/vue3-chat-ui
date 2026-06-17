@@ -221,6 +221,53 @@ describe('AiChat', () => {
     expect((textarea.element as HTMLTextAreaElement).value).toBe('Line one')
   })
 
+  it('supports controlled composer input', async () => {
+    const send = vi.fn(async () => 'Answer')
+    const wrapper = mount(AiChat, {
+      props: {
+        input: 'Prefilled prompt',
+        adapter: { send },
+        'onUpdate:input': (value: string) => wrapper.setProps({ input: value })
+      }
+    })
+
+    const textarea = wrapper.find('textarea')
+
+    expect((textarea.element as HTMLTextAreaElement).value).toBe('Prefilled prompt')
+
+    await textarea.setValue('Changed prompt')
+
+    expect(wrapper.emitted('update:input')?.[0]).toEqual(['Changed prompt'])
+
+    await textarea.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'Changed prompt' })
+    )
+    expect(wrapper.emitted('update:input')?.at(-1)).toEqual([''])
+    expect((textarea.element as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('exposes composer draft and actions to composer slots', async () => {
+    const send = vi.fn(async () => 'Slot answer')
+    const wrapper = mount(AiChat, {
+      props: { adapter: { send } },
+      slots: {
+        'composer-actions':
+          '<template #composer-actions="{ draft, canSubmit, actions }"><button class="slot-submit" type="button" :disabled="!canSubmit" @click="actions.submit()">Send {{ draft }}</button></template>'
+      }
+    })
+
+    await wrapper.find('textarea').setValue('Slot prompt')
+    await wrapper.find('.slot-submit').trigger('click')
+    await flushPromises()
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'Slot prompt' })
+    )
+  })
+
   it('disables controls while disabled', () => {
     const wrapper = mount(AiChat, {
       props: { disabled: true }

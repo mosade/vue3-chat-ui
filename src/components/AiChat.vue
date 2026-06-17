@@ -17,6 +17,8 @@ const props = withDefaults(
   defineProps<{
     messages?: AiChatMessage[]
     defaultMessages?: AiChatMessage[]
+    input?: string
+    defaultInput?: string
     adapter?: AiChatAdapter
     sendHandler?: (context: AiChatSendContext) => Promise<string | void>
     loading?: boolean
@@ -29,6 +31,8 @@ const props = withDefaults(
   {
     messages: undefined,
     defaultMessages: undefined,
+    input: undefined,
+    defaultInput: '',
     adapter: undefined,
     sendHandler: undefined,
     loading: false,
@@ -42,6 +46,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:messages': [messages: AiChatMessage[]]
+  'update:input': [value: string]
   send: [prompt: string]
   stop: []
   regenerate: [payload: AiChatRegeneratePayload]
@@ -69,6 +74,10 @@ const editingContent = ref('')
 const submit = async (prompt: string) => {
   emit('send', prompt)
   await chat.send(prompt)
+}
+
+const updateInput = (value: string) => {
+  emit('update:input', value)
 }
 
 const stop = () => {
@@ -247,18 +256,21 @@ const renderMessageContent = (message: AiChatMessage) => {
     </ChatMessageList>
 
     <ChatComposer
+      :input="input"
+      :default-input="defaultInput"
       :disabled="isDisabled || isBusy"
       :active="isActive"
       :placeholder="placeholder"
       :auto-focus="autoFocus"
+      @update:input="updateInput"
       @submit="submit"
       @stop="stop"
     >
-      <template #prefix>
-        <slot name="composer-prefix" />
+      <template #prefix="slotProps">
+        <slot name="composer-prefix" v-bind="slotProps" />
       </template>
-      <template #actions>
-        <slot name="composer-actions" />
+      <template #actions="slotProps">
+        <slot name="composer-actions" v-bind="slotProps" />
       </template>
     </ChatComposer>
 
