@@ -229,6 +229,85 @@ describe('useAiChat', () => {
     )
   })
 
+  it('retries an errored assistant message from its preceding user prompt', async () => {
+    const onSend = vi
+      .fn<(context: AiChatSendContext) => Promise<string>>()
+      .mockRejectedValueOnce(new Error('Temporary failure'))
+      .mockResolvedValueOnce('Recovered answer')
+    const chat = useAiChat({ onSend })
+
+    await chat.send('Retry prompt')
+    const assistantId = chat.messages.value[1].id
+
+    expect(chat.messages.value[1]).toMatchObject({
+      role: 'assistant',
+      status: 'error',
+      content: 'Temporary failure'
+    })
+    expect(chat.canRetry(chat.messages.value[1])).toBe(true)
+
+    const payload = await chat.retry(assistantId)
+
+    expect(payload).toMatchObject({
+      message: {
+        id: assistantId,
+        role: 'assistant',
+        content: 'Temporary failure',
+        status: 'error'
+      },
+      promptMessage: {
+        role: 'user',
+        content: 'Retry prompt'
+      }
+    })
+    expect(onSend).toHaveBeenCalledTimes(2)
+    expect(onSend.mock.calls[1][0].prompt).toBe('Retry prompt')
+    expect(chat.messages.value[1]).toMatchObject({
+      id: assistantId,
+      role: 'assistant',
+      content: 'Recovered answer',
+      status: 'done'
+    })
+  })
+
+  it('edits a user message, drops later messages, and resubmits it', async () => {
+    const onSend = vi
+      .fn<(context: AiChatSendContext) => Promise<string>>()
+      .mockResolvedValueOnce('Original answer')
+      .mockResolvedValueOnce('Later answer')
+      .mockResolvedValueOnce('Edited answer')
+    const chat = useAiChat({ onSend })
+
+    await chat.send('Original prompt')
+    const userId = chat.messages.value[0].id
+    await chat.send('Later prompt')
+
+    const payload = await chat.editUserMessage(userId, 'Edited prompt')
+
+    expect(payload).toMatchObject({
+      message: {
+        id: userId,
+        role: 'user',
+        content: 'Original prompt'
+      },
+      prompt: 'Edited prompt'
+    })
+    expect(onSend).toHaveBeenCalledTimes(3)
+    expect(onSend.mock.calls[2][0].prompt).toBe('Edited prompt')
+    expect(chat.messages.value).toHaveLength(2)
+    expect(chat.messages.value[0]).toMatchObject({
+      id: userId,
+      role: 'user',
+      content: 'Edited prompt',
+      status: 'done'
+    })
+    expect(chat.messages.value[1]).toMatchObject({
+      role: 'assistant',
+      content: 'Edited answer',
+      status: 'done'
+    })
+  })
+
   it('does not regenerate non-assistant messages or messages without a preceding user prompt', async () => {
     const onSend = vi.fn<(context: AiChatSendContext) => Promise<string>>()
     const chat = useAiChat({

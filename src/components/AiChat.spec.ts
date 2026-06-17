@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import AiChat from './AiChat.vue'
 import type { AiChatMessage, AiChatRegeneratePayload } from '../types'
@@ -7,6 +7,14 @@ import type { AiChatMessage, AiChatRegeneratePayload } from '../types'
 const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('AiChat', () => {
+  beforeEach(() => {
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn()
+      }
+    })
+  })
+
   it('renders the empty state', () => {
     const wrapper = mount(AiChat)
 
@@ -365,6 +373,66 @@ describe('AiChat', () => {
 
     expect(send).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Slot regenerated')
+  })
+
+  it('copies message content from the default message action', async () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [{ id: 'a1', role: 'assistant', content: 'Copy this', status: 'done' }]
+      }
+    })
+
+    await wrapper.find('[aria-label="Copy message"]').trigger('click')
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Copy this')
+  })
+
+  it('retries an errored assistant response from its default message action', async () => {
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('First failure'))
+      .mockResolvedValueOnce('Retry answer')
+    const wrapper = mount(AiChat, {
+      props: { adapter: { send } }
+    })
+
+    await wrapper.find('textarea').setValue('Retry in UI')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    await wrapper.find('[aria-label="Retry response"]').trigger('click')
+    await flushPromises()
+
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send.mock.calls[1][0].prompt).toBe('Retry in UI')
+    expect(wrapper.text()).toContain('Retry answer')
+    expect(wrapper.text()).not.toContain('First failure')
+  })
+
+  it('edits a user message from the default action and resubmits it', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce('Original answer')
+      .mockResolvedValueOnce('Edited answer')
+    const wrapper = mount(AiChat, {
+      props: { adapter: { send } }
+    })
+
+    await wrapper.find('textarea').setValue('Original prompt')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    await wrapper.find('[aria-label="Edit message"]').trigger('click')
+    const editInput = wrapper.find('[aria-label="Edit message content"]')
+    await editInput.setValue('Edited prompt')
+    await wrapper.find('[aria-label="Save edited message"]').trigger('click')
+    await flushPromises()
+
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send.mock.calls[1][0].prompt).toBe('Edited prompt')
+    expect(wrapper.text()).toContain('Edited prompt')
+    expect(wrapper.text()).toContain('Edited answer')
+    expect(wrapper.text()).not.toContain('Original answer')
   })
 
   it('supports sendHandler as the request callback while still emitting send events', async () => {

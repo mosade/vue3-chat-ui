@@ -28,6 +28,12 @@ export interface UseAiChatReturn {
   stop: () => void
   regenerate: (messageId: string) => Promise<AiChatRegeneratePayload | null>
   canRegenerate: (message: AiChatMessage) => boolean
+  retry: (messageId: string) => Promise<AiChatRegeneratePayload | null>
+  canRetry: (message: AiChatMessage) => boolean
+  editUserMessage: (
+    messageId: string,
+    prompt: string
+  ) => Promise<{ message: AiChatMessage; prompt: string; messages: AiChatMessage[] } | null>
   clear: () => void
   setMessages: (messages: AiChatMessage[]) => void
 }
@@ -164,6 +170,12 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
 
   const canRegenerate = (message: AiChatMessage) =>
     message.role === 'assistant' && !activeRequest.value && Boolean(findPrecedingUserMessage(message.id))
+
+  const canRetry = (message: AiChatMessage) =>
+    message.role === 'assistant' &&
+    message.status === 'error' &&
+    !activeRequest.value &&
+    Boolean(findPrecedingUserMessage(message.id))
 
   const stop = () => {
     const request = activeRequest.value
@@ -304,6 +316,85 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     return payload
   }
 
+  const retry = async (messageId: string) => {
+    const target = messages.value.find((message) => message.id === messageId)
+    if (!target || !canRetry(target)) {
+      return null
+    }
+
+    const userMessage = findPrecedingUserMessage(messageId)
+    if (!userMessage) {
+      return null
+    }
+
+    const targetIndex = messages.value.findIndex((message) => message.id === messageId)
+    const originalMessage = { ...target, traces: target.traces ? [...target.traces] : target.traces }
+    const promptMessage = {
+      ...userMessage,
+      traces: userMessage.traces ? [...userMessage.traces] : userMessage.traces
+    }
+
+    messages.value = messages.value.slice(0, targetIndex + 1).map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            content: '',
+            status: 'pending',
+            traces: []
+          }
+        : message
+    )
+
+    const payload: AiChatRegeneratePayload = {
+      message: originalMessage,
+      promptMessage,
+      messages: messages.value
+    }
+
+    await runAssistantRequest(userMessage.content, messageId)
+
+    return payload
+  }
+
+  const editUserMessage = async (messageId: string, rawPrompt: string) => {
+    const prompt = rawPrompt.trim()
+    const targetIndex = messages.value.findIndex((message) => message.id === messageId)
+    const target = messages.value[targetIndex]
+
+    if (!prompt || activeRequest.value || !target || target.role !== 'user') {
+      return null
+    }
+
+    const originalMessage = { ...target, traces: target.traces ? [...target.traces] : target.traces }
+    const assistantMessage: AiChatMessage = {
+      id: createId(),
+      role: 'assistant',
+      content: '',
+      status: 'pending',
+      createdAt: Date.now()
+    }
+
+    messages.value = [
+      ...messages.value.slice(0, targetIndex),
+      {
+        ...target,
+        content: prompt,
+        status: 'done'
+      },
+      assistantMessage
+    ]
+
+    const payload = {
+      message: originalMessage,
+      prompt,
+      messages: messages.value
+    }
+
+    await runAssistantRequest(prompt, assistantMessage.id)
+
+    return payload
+  }
+
   const clear = () => {
     if (activeRequest.value) {
       activeRequest.value.controller.abort()
@@ -322,6 +413,9 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     stop,
     regenerate,
     canRegenerate,
+    retry,
+    canRetry,
+    editUserMessage,
     clear,
     setMessages
   }

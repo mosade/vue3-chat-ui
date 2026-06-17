@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, toRef } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import ChatComposer from './ChatComposer.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatToolbar from './ChatToolbar.vue'
@@ -63,6 +63,8 @@ const chat = useAiChat({
 const isBusy = computed(() => props.loading || chat.isActive.value)
 const isDisabled = computed(() => props.disabled)
 const isActive = computed(() => chat.isActive.value)
+const editingMessageId = ref<string | null>(null)
+const editingContent = ref('')
 
 const submit = async (prompt: string) => {
   emit('send', prompt)
@@ -83,6 +85,31 @@ const regenerate = async (message: AiChatMessage) => {
   const payload = await chat.regenerate(message.id)
   if (payload) {
     emit('regenerate', payload)
+  }
+}
+
+const copyMessage = async (message: AiChatMessage) => {
+  await navigator.clipboard?.writeText(message.content)
+}
+
+const retry = async (message: AiChatMessage) => {
+  await chat.retry(message.id)
+}
+
+const startEdit = (message: AiChatMessage) => {
+  editingMessageId.value = message.id
+  editingContent.value = message.content
+}
+
+const cancelEdit = () => {
+  editingMessageId.value = null
+  editingContent.value = ''
+}
+
+const saveEdit = async (message: AiChatMessage) => {
+  const payload = await chat.editUserMessage(message.id, editingContent.value)
+  if (payload) {
+    cancelEdit()
   }
 }
 
@@ -117,8 +144,39 @@ const renderMessageContent = (message: AiChatMessage) => {
       <template #message-content="slotProps">
         <slot name="message" v-bind="slotProps">
           <slot name="message-content" v-bind="slotProps">
+            <form
+              v-if="editingMessageId === slotProps.message.id"
+              class="ai-chat__message-edit"
+              @submit.prevent="saveEdit(slotProps.message)"
+            >
+              <textarea
+                v-model="editingContent"
+                class="ai-chat__composer-input"
+                aria-label="Edit message content"
+                rows="2"
+              />
+              <div class="ai-chat__message-edit-actions">
+                <button
+                  class="ai-chat__button"
+                  type="button"
+                  aria-label="Save edited message"
+                  :disabled="isDisabled || isBusy || !editingContent.trim()"
+                  @click="saveEdit(slotProps.message)"
+                >
+                  Save
+                </button>
+                <button
+                  class="ai-chat__button ai-chat__button--secondary"
+                  type="button"
+                  aria-label="Cancel edit"
+                  @click="cancelEdit"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
             <span
-              v-if="markdown"
+              v-else-if="markdown"
               class="ai-chat__markdown"
               v-html="renderMessageContent(slotProps.message)"
             />
@@ -133,8 +191,42 @@ const renderMessageContent = (message: AiChatMessage) => {
           name="message-actions"
           v-bind="slotProps"
           :can-regenerate="chat.canRegenerate(slotProps.message)"
-          :actions="{ regenerate: () => regenerate(slotProps.message) }"
+          :can-retry="chat.canRetry(slotProps.message)"
+          :actions="{
+            copy: () => copyMessage(slotProps.message),
+            regenerate: () => regenerate(slotProps.message),
+            retry: () => retry(slotProps.message),
+            edit: () => startEdit(slotProps.message)
+          }"
         >
+          <button
+            v-if="slotProps.message.content"
+            class="ai-chat__button ai-chat__button--secondary"
+            type="button"
+            aria-label="Copy message"
+            @click="copyMessage(slotProps.message)"
+          >
+            Copy
+          </button>
+          <button
+            v-if="slotProps.message.role === 'user'"
+            class="ai-chat__button ai-chat__button--secondary"
+            type="button"
+            aria-label="Edit message"
+            :disabled="isDisabled || isBusy"
+            @click="startEdit(slotProps.message)"
+          >
+            Edit
+          </button>
+          <button
+            v-if="chat.canRetry(slotProps.message)"
+            class="ai-chat__button ai-chat__button--secondary"
+            type="button"
+            aria-label="Retry response"
+            @click="retry(slotProps.message)"
+          >
+            Retry
+          </button>
           <button
             v-if="chat.canRegenerate(slotProps.message)"
             class="ai-chat__button ai-chat__button--secondary"
