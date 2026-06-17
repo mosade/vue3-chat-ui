@@ -375,4 +375,33 @@ describe('useAiChat', () => {
       content: 'Controlled response'
     })
   })
+
+  it('persists message changes with the conversation id', async () => {
+    const onPersist = vi.fn()
+    const chat = useAiChat({
+      conversationId: 'conversation-1',
+      onPersist,
+      onSend: async () => 'Persisted response'
+    })
+
+    await chat.send('Persist this')
+
+    expect(onPersist).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'user', content: 'Persist this' }),
+        expect.objectContaining({ role: 'assistant', content: 'Persisted response' })
+      ]),
+      expect.objectContaining({
+        conversationId: 'conversation-1',
+        reason: 'send'
+      })
+    )
+
+    chat.clear()
+
+    expect(onPersist).toHaveBeenLastCalledWith([], {
+      conversationId: 'conversation-1',
+      reason: 'clear'
+    })
+  })
 })

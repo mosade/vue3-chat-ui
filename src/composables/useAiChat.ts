@@ -9,11 +9,19 @@ import type {
 } from '../types'
 
 export interface UseAiChatOptions {
+  conversationId?: string
   messages?: MaybeRef<AiChatMessage[] | undefined>
   defaultMessages?: AiChatMessage[]
   adapter?: AiChatAdapter
   onSend?: (context: AiChatSendContext) => Promise<string | void>
   onUpdateMessages?: (messages: AiChatMessage[]) => void
+  onPersist?: (
+    messages: AiChatMessage[],
+    context: {
+      conversationId?: string
+      reason: 'send' | 'stop' | 'regenerate' | 'retry' | 'edit' | 'clear' | 'set'
+    }
+  ) => void
   onError?: (
     error: AiChatError,
     context: { prompt: string; messages: AiChatMessage[] }
@@ -97,6 +105,16 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
 
   const setMessages = (nextMessages: AiChatMessage[]) => {
     messages.value = nextMessages
+    persist('set')
+  }
+
+  const persist = (
+    reason: 'send' | 'stop' | 'regenerate' | 'retry' | 'edit' | 'clear' | 'set'
+  ) => {
+    options.onPersist?.([...messages.value], {
+      conversationId: options.conversationId,
+      reason
+    })
   }
 
   const updateMessage = (id: string, patch: Partial<AiChatMessage>) => {
@@ -186,6 +204,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     request.controller.abort()
     updateMessage(request.assistantId, { status: 'done' })
     activeRequest.value = null
+    persist('stop')
   }
 
   const runAssistantRequest = async (prompt: string, assistantId: string) => {
@@ -274,6 +293,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
 
     messages.value = [...messages.value, userMessage, assistantMessage]
     await runAssistantRequest(prompt, assistantMessage.id)
+    persist('send')
   }
 
   const regenerate = async (messageId: string) => {
@@ -312,6 +332,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     }
 
     await runAssistantRequest(userMessage.content, messageId)
+    persist('regenerate')
 
     return payload
   }
@@ -352,6 +373,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     }
 
     await runAssistantRequest(userMessage.content, messageId)
+    persist('retry')
 
     return payload
   }
@@ -391,6 +413,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     }
 
     await runAssistantRequest(prompt, assistantMessage.id)
+    persist('edit')
 
     return payload
   }
@@ -403,6 +426,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
 
     error.value = null
     messages.value = []
+    persist('clear')
   }
 
   return {
