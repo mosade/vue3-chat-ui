@@ -34,6 +34,17 @@ describe('demo App', () => {
     expect(wrapper.find('[data-shadcn-action="regenerate"]').exists()).toBe(true)
   })
 
+  it('renders a custom shadcn edit form', async () => {
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+    await wrapper.find('[data-shadcn-action="edit"]').trigger('click')
+
+    expect(wrapper.find('.shadcn-edit-form').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Shadcn edit message"]').exists()).toBe(true)
+    expect(wrapper.find('[data-shadcn-edit="save"]').exists()).toBe(true)
+  })
+
   it('renders a custom shadcn retry action for errored responses', async () => {
     const wrapper = mount(App)
 

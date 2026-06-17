@@ -127,12 +127,18 @@ const cancelEdit = () => {
   editingContent.value = ''
 }
 
+const updateEdit = (value: string) => {
+  editingContent.value = value
+}
+
 const saveEdit = async (message: AiChatMessage) => {
   const payload = await chat.editUserMessage(message.id, editingContent.value)
   if (payload) {
     cancelEdit()
   }
 }
+
+const canSaveEdit = computed(() => Boolean(editingContent.value.trim()) && !isDisabled.value && !isBusy.value)
 
 const renderMessageContent = (message: AiChatMessage) => {
   if (typeof props.markdown === 'function') {
@@ -163,37 +169,46 @@ const renderMessageContent = (message: AiChatMessage) => {
         <slot name="avatar" v-bind="slotProps" />
       </template>
       <template #message-content="slotProps">
-        <form
+        <slot
           v-if="editingMessageId === slotProps.message.id"
-          class="ai-chat__message-edit"
-          @submit.prevent="saveEdit(slotProps.message)"
+          name="message-edit"
+          v-bind="slotProps"
+          :draft="editingContent"
+          :can-save="canSaveEdit"
+          :actions="{
+            update: updateEdit,
+            save: () => saveEdit(slotProps.message),
+            cancel: cancelEdit
+          }"
         >
-          <textarea
-            v-model="editingContent"
-            class="ai-chat__composer-input"
-            aria-label="Edit message content"
-            rows="2"
-          />
-          <div class="ai-chat__message-edit-actions">
-            <button
-              class="ai-chat__button"
-              type="button"
-              aria-label="Save edited message"
-              :disabled="isDisabled || isBusy || !editingContent.trim()"
-              @click="saveEdit(slotProps.message)"
-            >
-              Save
-            </button>
-            <button
-              class="ai-chat__button ai-chat__button--secondary"
-              type="button"
-              aria-label="Cancel edit"
-              @click="cancelEdit"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+          <form class="ai-chat__message-edit" @submit.prevent="saveEdit(slotProps.message)">
+            <textarea
+              v-model="editingContent"
+              class="ai-chat__composer-input"
+              aria-label="Edit message content"
+              rows="2"
+            />
+            <div class="ai-chat__message-edit-actions">
+              <button
+                class="ai-chat__button"
+                type="button"
+                aria-label="Save edited message"
+                :disabled="!canSaveEdit"
+                @click="saveEdit(slotProps.message)"
+              >
+                Save
+              </button>
+              <button
+                class="ai-chat__button ai-chat__button--secondary"
+                type="button"
+                aria-label="Cancel edit"
+                @click="cancelEdit"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </slot>
         <slot v-else name="message" v-bind="slotProps">
           <slot name="message-content" v-bind="slotProps">
             <span

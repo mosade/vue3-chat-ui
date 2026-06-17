@@ -557,6 +557,33 @@ describe('AiChat', () => {
     expect(wrapper.find('.custom-content').exists()).toBe(false)
   })
 
+  it('supports a custom message edit slot', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce('Original answer')
+      .mockResolvedValueOnce('Custom edited answer')
+    const wrapper = mount(AiChat, {
+      props: { adapter: { send } },
+      slots: {
+        'message-edit':
+          '<template #message-edit="{ draft, canSave, actions }"><div class="custom-edit"><input aria-label="Custom edit input" :value="draft" @input="actions.update($event.target.value)" /><button type="button" class="custom-save" :disabled="!canSave" @click="actions.save()">Apply</button><button type="button" class="custom-cancel" @click="actions.cancel()">Dismiss</button></div></template>'
+      }
+    })
+
+    await wrapper.find('textarea').setValue('Original prompt')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    await wrapper.find('[aria-label="Edit message"]').trigger('click')
+    await wrapper.find('[aria-label="Custom edit input"]').setValue('Custom edited prompt')
+    await wrapper.find('.custom-save').trigger('click')
+    await flushPromises()
+
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send.mock.calls[1][0].prompt).toBe('Custom edited prompt')
+    expect(wrapper.text()).toContain('Custom edited answer')
+  })
+
   it('supports sendHandler as the request callback while still emitting send events', async () => {
     const sendHandler = vi.fn(async () => 'Answer from handler')
     const wrapper = mount(AiChat, {

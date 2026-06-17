@@ -210,6 +210,36 @@ const sendShadcnMessage = async ({
             </div>
           </template>
 
+          <template #message-edit="{ draft, canSave, actions }">
+            <form class="shadcn-edit-form" @submit.prevent="actions.save()">
+              <textarea
+                class="shadcn-edit-form__input"
+                aria-label="Shadcn edit message"
+                :value="draft"
+                rows="3"
+                @input="actions.update(($event.target as HTMLTextAreaElement).value)"
+              />
+              <div class="shadcn-edit-form__actions">
+                <button
+                  class="shadcn-message-action"
+                  type="submit"
+                  data-shadcn-edit="save"
+                  :disabled="!canSave"
+                >
+                  Save
+                </button>
+                <button
+                  class="shadcn-message-action"
+                  type="button"
+                  data-shadcn-edit="cancel"
+                  @click="actions.cancel()"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </template>
+
           <template #message-trace="{ trace }">
             <div class="shadcn-trace-row">
               <span class="shadcn-trace-row__kind">{{ trace.kind }}</span>
