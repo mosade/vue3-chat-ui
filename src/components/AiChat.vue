@@ -8,6 +8,7 @@ import type {
   AiChatAdapter,
   AiChatError,
   AiChatMessage,
+  AiChatRegeneratePayload,
   AiChatSendContext
 } from '../types'
 
@@ -42,7 +43,7 @@ const emit = defineEmits<{
   'update:messages': [messages: AiChatMessage[]]
   send: [prompt: string]
   stop: []
-  regenerate: [message: AiChatMessage]
+  regenerate: [payload: AiChatRegeneratePayload]
   clear: []
   error: [error: AiChatError, context: { prompt: string; messages: AiChatMessage[] }]
 }>()
@@ -78,8 +79,10 @@ const clear = () => {
 }
 
 const regenerate = async (message: AiChatMessage) => {
-  emit('regenerate', message)
-  await chat.regenerate(message.id)
+  const payload = await chat.regenerate(message.id)
+  if (payload) {
+    emit('regenerate', payload)
+  }
 }
 </script>
 

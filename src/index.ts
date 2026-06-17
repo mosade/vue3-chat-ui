@@ -5,6 +5,7 @@ export type {
   AiChatError,
   AiChatMessage,
   AiChatMessageStatus,
+  AiChatRegeneratePayload,
   AiChatRole,
   AiChatSendContext,
   AiChatTrace,

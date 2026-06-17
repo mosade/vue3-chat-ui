@@ -161,7 +161,7 @@ const messages = ref<AiChatMessage[]>([])
 | `update:messages` | `AiChatMessage[]` |
 | `send` | `prompt: string` |
 | `stop` | none |
-| `regenerate` | `message: AiChatMessage` |
+| `regenerate` | `AiChatRegeneratePayload` |
 | `clear` | none |
 | `error` | `AiChatError`, `{ prompt, messages }` |
 
@@ -260,6 +260,12 @@ export interface AiChatMessage {
   traces?: AiChatTrace[]
   createdAt?: number
   meta?: Record<string, unknown>
+}
+
+export interface AiChatRegeneratePayload {
+  message: AiChatMessage
+  promptMessage: AiChatMessage
+  messages: AiChatMessage[]
 }
 ```
 

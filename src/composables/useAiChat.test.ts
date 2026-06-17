@@ -144,10 +144,34 @@ describe('useAiChat', () => {
 
     await chat.send('Original prompt')
     const assistantId = chat.messages.value[1].id
-    await chat.regenerate(assistantId)
+    const payload = await chat.regenerate(assistantId)
 
     expect(onSend).toHaveBeenCalledTimes(2)
     expect(onSend.mock.calls[1][0].prompt).toBe('Original prompt')
+    expect(payload).toMatchObject({
+      message: {
+        id: assistantId,
+        role: 'assistant',
+        content: 'Original answer'
+      },
+      promptMessage: {
+        role: 'user',
+        content: 'Original prompt'
+      },
+      messages: [
+        {
+          role: 'user',
+          content: 'Original prompt'
+        },
+        {
+          id: assistantId,
+          role: 'assistant',
+          content: '',
+          status: 'pending',
+          traces: []
+        }
+      ]
+    })
     expect(chat.messages.value).toHaveLength(2)
     expect(chat.messages.value[1]).toMatchObject({
       id: assistantId,

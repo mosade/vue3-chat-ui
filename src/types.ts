@@ -37,6 +37,12 @@ export interface AiChatSendContext {
   updateTrace: (id: string, trace: Partial<AiChatTrace>) => void
 }
 
+export interface AiChatRegeneratePayload {
+  message: AiChatMessage
+  promptMessage: AiChatMessage
+  messages: AiChatMessage[]
+}
+
 export interface AiChatAdapter {
   send: (context: AiChatSendContext) => Promise<string | void>
 }

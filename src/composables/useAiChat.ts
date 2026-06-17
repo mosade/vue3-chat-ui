@@ -3,6 +3,7 @@ import type {
   AiChatAdapter,
   AiChatError,
   AiChatMessage,
+  AiChatRegeneratePayload,
   AiChatSendContext,
   AiChatTrace
 } from '../types'
@@ -25,7 +26,7 @@ export interface UseAiChatReturn {
   error: Ref<AiChatError | null>
   send: (prompt: string) => Promise<void>
   stop: () => void
-  regenerate: (messageId: string) => Promise<void>
+  regenerate: (messageId: string) => Promise<AiChatRegeneratePayload | null>
   canRegenerate: (message: AiChatMessage) => boolean
   clear: () => void
   setMessages: (messages: AiChatMessage[]) => void
@@ -266,15 +267,21 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
   const regenerate = async (messageId: string) => {
     const target = messages.value.find((message) => message.id === messageId)
     if (!target || !canRegenerate(target)) {
-      return
+      return null
     }
 
     const userMessage = findPrecedingUserMessage(messageId)
     if (!userMessage) {
-      return
+      return null
     }
 
     const targetIndex = messages.value.findIndex((message) => message.id === messageId)
+    const originalMessage = { ...target, traces: target.traces ? [...target.traces] : target.traces }
+    const promptMessage = {
+      ...userMessage,
+      traces: userMessage.traces ? [...userMessage.traces] : userMessage.traces
+    }
+
     messages.value = messages.value.slice(0, targetIndex + 1).map((message) =>
       message.id === messageId
         ? {
@@ -286,7 +293,15 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
         : message
     )
 
+    const payload: AiChatRegeneratePayload = {
+      message: originalMessage,
+      promptMessage,
+      messages: messages.value
+    }
+
     await runAssistantRequest(userMessage.content, messageId)
+
+    return payload
   }
 
   const clear = () => {

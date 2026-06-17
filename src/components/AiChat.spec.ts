@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import AiChat from './AiChat.vue'
-import type { AiChatMessage } from '../types'
+import type { AiChatMessage, AiChatRegeneratePayload } from '../types'
 
 const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -224,6 +224,7 @@ describe('AiChat', () => {
     const send = vi
       .fn()
       .mockResolvedValueOnce('Original answer')
+      .mockResolvedValueOnce('Follow-up answer')
       .mockResolvedValueOnce('Regenerated answer')
     const wrapper = mount(AiChat, {
       props: { adapter: { send } }
@@ -232,21 +233,45 @@ describe('AiChat', () => {
     await wrapper.find('textarea').setValue('Regenerate this')
     await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
     await flushPromises()
+    await wrapper.find('textarea').setValue('Follow-up prompt')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
 
-    const regenerateButton = wrapper.find('[aria-label="Regenerate response"]')
+    const regenerateButton = wrapper.findAll('[aria-label="Regenerate response"]')[0]
     expect(regenerateButton.exists()).toBe(true)
 
     await regenerateButton.trigger('click')
     await flushPromises()
 
-    expect(wrapper.emitted('regenerate')?.[0][0]).toMatchObject({
-      role: 'assistant',
-      content: 'Original answer'
+    const payload = wrapper.emitted('regenerate')?.[0][0] as AiChatRegeneratePayload
+    expect(payload).toMatchObject({
+      message: {
+        role: 'assistant',
+        content: 'Original answer'
+      },
+      promptMessage: {
+        role: 'user',
+        content: 'Regenerate this'
+      },
+      messages: [
+        {
+          role: 'user',
+          content: 'Regenerate this'
+        },
+        {
+          role: 'assistant',
+          content: '',
+          status: 'pending',
+          traces: []
+        }
+      ]
     })
-    expect(send).toHaveBeenCalledTimes(2)
-    expect(send.mock.calls[1][0].prompt).toBe('Regenerate this')
+    expect(payload.messages).toHaveLength(2)
+    expect(send).toHaveBeenCalledTimes(3)
+    expect(send.mock.calls[2][0].prompt).toBe('Regenerate this')
     expect(wrapper.text()).toContain('Regenerated answer')
     expect(wrapper.text()).not.toContain('Original answer')
+    expect(wrapper.text()).not.toContain('Follow-up answer')
   })
 
   it('exposes regenerate actions to message action slots', async () => {

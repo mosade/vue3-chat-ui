@@ -185,7 +185,7 @@ export interface AiChatError {
 - `update:messages`
 - `send`
 - `stop`
-- `regenerate`
+- `regenerate` with `{ message, promptMessage, messages }`, where `messages` is the post-reset, pre-request message list.
 - `clear`
 - `error`
 
@@ -234,8 +234,9 @@ Only one active request is supported in version 1. This keeps cancellation, rege
 2. Component finds the nearest preceding user message and uses it as the prompt.
 3. Component drops messages after the selected assistant message to avoid inconsistent follow-up context.
 4. Component keeps the selected assistant message id, clears its content and traces, and marks it `pending`.
-5. Component calls `sendHandler` or `adapter.send`.
-6. Streaming, success, stop, and error handling follow the same assistant request path as normal send.
+5. Component emits `regenerate` with the original assistant message, preceding user message, and the post-reset messages.
+6. Component calls `sendHandler` or `adapter.send`.
+7. Streaming, success, stop, and error handling follow the same assistant request path as normal send.
 
 ## Markdown Strategy
 
