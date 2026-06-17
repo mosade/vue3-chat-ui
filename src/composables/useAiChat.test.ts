@@ -130,7 +130,7 @@ describe('useAiChat', () => {
     expect(context?.signal.aborted).toBe(true)
     expect(chat.messages.value[1]).toMatchObject({
       content: 'Partial',
-      status: 'done'
+      status: 'stopped'
     })
     expect(chat.isActive.value).toBe(false)
   })

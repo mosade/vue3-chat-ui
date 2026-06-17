@@ -324,6 +324,32 @@ describe('AiChat', () => {
     expect(wrapper.find('[aria-label="Stop response"]').exists()).toBe(true)
   })
 
+  it('marks a stopped response distinctly from a completed response', async () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        adapter: {
+          send: ({ append, signal }) => {
+            append('Partial answer')
+            return new Promise<void>((resolve, reject) => {
+              signal.addEventListener('abort', () => {
+                reject(new DOMException('Aborted', 'AbortError'))
+              })
+            })
+          }
+        }
+      }
+    })
+
+    await wrapper.find('textarea').setValue('Stop please')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await nextTick()
+    await wrapper.find('[aria-label="Stop response"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.ai-chat__message--stopped').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Stopped')
+  })
+
   it('does not show stop controls for external loading alone', () => {
     const wrapper = mount(AiChat, {
       props: { loading: true }

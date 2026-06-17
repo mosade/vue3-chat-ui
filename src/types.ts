@@ -1,6 +1,6 @@
 export type AiChatRole = 'user' | 'assistant' | 'system' | 'error'
 
-export type AiChatMessageStatus = 'pending' | 'streaming' | 'done' | 'error'
+export type AiChatMessageStatus = 'pending' | 'streaming' | 'done' | 'error' | 'stopped'
 
 export type AiChatTraceKind = 'reasoning' | 'search' | 'tool' | 'source'
 

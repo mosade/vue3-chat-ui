@@ -86,6 +86,9 @@ const tracesSummary = (traces: AiChatTrace[]) => {
         <span v-if="message.status === 'error'" class="ai-chat__status" role="alert">
           Error
         </span>
+        <span v-if="message.status === 'stopped'" class="ai-chat__status">
+          Stopped
+        </span>
       </div>
 
       <div v-if="message.sources?.length" class="ai-chat__sources" aria-label="Sources">

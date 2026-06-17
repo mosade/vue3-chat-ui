@@ -202,7 +202,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     }
 
     request.controller.abort()
-    updateMessage(request.assistantId, { status: 'done' })
+    updateMessage(request.assistantId, { status: 'stopped' })
     activeRequest.value = null
     persist('stop')
   }
@@ -236,7 +236,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
       const result = await sendHandler(context)
 
       if (controller.signal.aborted) {
-        updateMessage(assistantId, { status: 'done' })
+        updateMessage(assistantId, { status: 'stopped' })
         return
       }
 
@@ -252,7 +252,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
       updateMessage(assistantId, { status: 'done' })
     } catch (cause) {
       if (controller.signal.aborted || isAbortError(cause)) {
-        updateMessage(assistantId, { status: 'done' })
+        updateMessage(assistantId, { status: 'stopped' })
         return
       }
 
