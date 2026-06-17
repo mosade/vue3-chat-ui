@@ -5,13 +5,23 @@ import { AiChat, type AiChatMessage, type AiChatSendContext } from '../src'
 type DemoVariant = 'default' | 'shadcn'
 
 const activeVariant = ref<DemoVariant>('default')
+const composerInput = ref('')
+const persistEvents = ref<string[]>([])
 const messages = ref<AiChatMessage[]>([
   {
     id: 'welcome',
     role: 'assistant',
     content:
-      'This demo uses a local mock adapter. Try sending a prompt, stopping the stream, regenerating a response, clearing messages, and switching the theme.',
-    status: 'done'
+      '**Markdown rendering** is enabled in this demo. Try copy, edit, retry, regenerate, stop, and the jump-to-latest control.',
+    status: 'done',
+    sources: [
+      {
+        id: 'vue-api-reference',
+        title: 'Vue API Reference',
+        url: 'https://vuejs.org/api/',
+        snippet: 'Used here as an example citation rendered from message.sources.'
+      }
+    ]
   }
 ])
 const shadcnMessages = ref<AiChatMessage[]>([
@@ -90,6 +100,7 @@ const wait = (ms: number, signal: AbortSignal) =>
 const sendDemoMessage = async ({
   prompt,
   append,
+  update,
   appendTrace,
   updateTrace,
   signal
@@ -136,6 +147,17 @@ const sendDemoMessage = async ({
     await wait(560, signal)
     append(chunk)
   }
+
+  update({
+    sources: [
+      {
+        id: `source-${Date.now()}`,
+        title: 'AiChatSendContext',
+        url: 'https://github.com/',
+        snippet: 'Demo source metadata is attached by the adapter through context.update().'
+      }
+    ]
+  })
 }
 
 const sendShadcnMessage = async ({
@@ -186,6 +208,18 @@ const sendShadcnMessage = async ({
 
 const messageCount = computed(() => messages.value.length)
 const shadcnMessageCount = computed(() => shadcnMessages.value.length)
+const prefillComposer = () => {
+  composerInput.value = 'Summarize the new AiChat features with sources.'
+}
+const recordPersist = (
+  nextMessages: AiChatMessage[],
+  context: { conversationId?: string; reason: string }
+) => {
+  persistEvents.value = [
+    `${context.conversationId ?? 'conversation'}:${context.reason}:${nextMessages.length}`,
+    ...persistEvents.value
+  ].slice(0, 5)
+}
 </script>
 
 <template>
@@ -231,11 +265,34 @@ const shadcnMessageCount = computed(() => shadcnMessages.value.length)
             <input v-model="failNext" type="checkbox" />
             Make next response fail
           </label>
+          <button class="demo-inline-button" type="button" data-demo-prefill @click="prefillComposer">
+            Prefill controlled composer
+          </button>
+        </div>
+
+        <div class="demo-feature-list">
+          <strong>Newly showcased features</strong>
+          <ul>
+            <li>Markdown rendering</li>
+            <li>Copy, retry, edit, and regenerate actions</li>
+            <li>Controlled composer input</li>
+            <li>Citations from message.sources</li>
+            <li>Stopped response status</li>
+            <li>Bottom-aware auto-scroll</li>
+          </ul>
         </div>
 
         <div class="demo-stat">
           <span>Messages</span>
           <strong>{{ messageCount }}</strong>
+        </div>
+
+        <div class="demo-persist" aria-label="Persist events">
+          <strong>Persist events</strong>
+          <span v-if="persistEvents.length === 0">No persisted changes yet</span>
+          <ol v-else>
+            <li v-for="event in persistEvents" :key="event">{{ event }}</li>
+          </ol>
         </div>
 
         <pre class="demo-preview" aria-label="Controlled messages preview">{{
@@ -246,8 +303,12 @@ const shadcnMessageCount = computed(() => shadcnMessages.value.length)
       <section class="demo-chat" :style="themeStyle">
         <AiChat
           v-model:messages="messages"
+          v-model:input="composerInput"
           :adapter="{ send: sendDemoMessage }"
+          conversation-id="default-demo"
+          :on-persist="recordPersist"
           auto-focus
+          markdown
           placeholder="Ask the demo adapter..."
         >
           <template #header="{ active }">
@@ -271,14 +332,6 @@ const shadcnMessageCount = computed(() => shadcnMessages.value.length)
             <span class="demo-avatar">{{ message.role === 'user' ? 'U' : 'AI' }}</span>
           </template>
 
-          <template #message-content="{ message }">
-            <p class="demo-message-text">{{ message.content || 'Thinking...' }}</p>
-          </template>
-
-          <!-- <template #message-actions="{ message }">
-            <span>{{ message.status ?? 'done' }}</span>
-          </template> -->
-
           <template #message-trace="{ trace }">
             <div class="demo-trace-card">
               <span>{{ trace.kind }}</span>
@@ -287,18 +340,30 @@ const shadcnMessageCount = computed(() => shadcnMessages.value.length)
             </div>
           </template>
 
+          <template #message-source="{ source }">
+            <div class="demo-source-card">
+              <strong>{{ source.title }}</strong>
+              <a v-if="source.url" :href="source.url" target="_blank" rel="noreferrer">
+                {{ source.url }}
+              </a>
+              <p v-if="source.snippet">{{ source.snippet }}</p>
+            </div>
+          </template>
+
           <template #composer-prefix>
             <span class="demo-prefix" aria-hidden="true">AI</span>
           </template>
 
-          <template #composer-actions>
+          <template #composer-actions="{ draft, canSubmit }">
+            <span class="demo-composer-state">{{ draft.length }} chars</span>
             <button class="demo-inline-button" type="button" @click="failNext = true">
               Fail next
             </button>
+            <span class="demo-composer-state">{{ canSubmit ? 'Ready' : 'Waiting' }}</span>
           </template>
 
           <template #footer>
-            Plain CSS variables, scoped slots, controlled messages, and provider-neutral send logic.
+            Markdown, citations, persistence hooks, controlled input, stopped status, and provider-neutral send logic.
           </template>
         </AiChat>
       </section>

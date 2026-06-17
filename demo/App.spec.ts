@@ -33,4 +33,20 @@ describe('demo App', () => {
     expect(wrapper.text()).toContain('Thinking summary')
     expect(wrapper.find('.ai-chat__traces').exists()).toBe(true)
   })
+
+  it('showcases newly added chat features', async () => {
+    const wrapper = mount(App)
+
+    expect(wrapper.text()).toContain('Newly showcased features')
+    expect(wrapper.text()).toContain('Markdown rendering')
+    expect(wrapper.find('.ai-chat__sources').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Vue API Reference')
+    expect(wrapper.text()).toContain('Persist events')
+
+    await wrapper.find('[data-demo-prefill]').trigger('click')
+
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain(
+      'Summarize the new AiChat features'
+    )
+  })
 })

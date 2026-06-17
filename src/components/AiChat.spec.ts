@@ -555,6 +555,34 @@ describe('AiChat', () => {
     expect(wrapper.text()).toContain('Answer from handler')
   })
 
+  it('passes persistence props to the chat state machine', async () => {
+    const onPersist = vi.fn()
+    const wrapper = mount(AiChat, {
+      props: {
+        conversationId: 'demo-thread',
+        onPersist,
+        adapter: {
+          send: async () => 'Persisted from component'
+        }
+      }
+    })
+
+    await wrapper.find('textarea').setValue('Persist component')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(onPersist).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'user', content: 'Persist component' }),
+        expect.objectContaining({ role: 'assistant', content: 'Persisted from component' })
+      ]),
+      expect.objectContaining({
+        conversationId: 'demo-thread',
+        reason: 'send'
+      })
+    )
+  })
+
   it('does not treat onSend as a request callback prop', async () => {
     const onSend = vi.fn(async () => 'Unexpected callback')
     const wrapper = mount(AiChat, {

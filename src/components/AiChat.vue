@@ -19,8 +19,16 @@ const props = withDefaults(
     defaultMessages?: AiChatMessage[]
     input?: string
     defaultInput?: string
+    conversationId?: string
     adapter?: AiChatAdapter
     sendHandler?: (context: AiChatSendContext) => Promise<string | void>
+    onPersist?: (
+      messages: AiChatMessage[],
+      context: {
+        conversationId?: string
+        reason: 'send' | 'stop' | 'regenerate' | 'retry' | 'edit' | 'clear' | 'set'
+      }
+    ) => void
     loading?: boolean
     disabled?: boolean
     placeholder?: string
@@ -33,8 +41,10 @@ const props = withDefaults(
     defaultMessages: undefined,
     input: undefined,
     defaultInput: '',
+    conversationId: undefined,
     adapter: undefined,
     sendHandler: undefined,
+    onPersist: undefined,
     loading: false,
     disabled: false,
     placeholder: 'Ask anything...',
@@ -55,6 +65,7 @@ const emit = defineEmits<{
 }>()
 
 const chat = useAiChat({
+  conversationId: props.conversationId,
   messages: toRef(props, 'messages'),
   defaultMessages: props.defaultMessages,
   onSend: (context) => {
@@ -62,6 +73,7 @@ const chat = useAiChat({
     return sendHandler?.(context) ?? Promise.resolve()
   },
   onUpdateMessages: (nextMessages) => emit('update:messages', nextMessages),
+  onPersist: (nextMessages, context) => props.onPersist?.(nextMessages, context),
   onError: (error, context) => emit('error', error, context)
 })
 

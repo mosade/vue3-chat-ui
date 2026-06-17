@@ -118,6 +118,36 @@ h1 {
   font-size: 24px;
 }
 
+.demo-feature-list,
+.demo-persist {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  color: #26323a;
+  background: #f6f8f9;
+  border: 1px solid #dbe3e7;
+  border-radius: 8px;
+}
+
+.demo-feature-list strong,
+.demo-persist strong {
+  color: #172026;
+}
+
+.demo-feature-list ul,
+.demo-persist ol {
+  display: grid;
+  gap: 4px;
+  padding-left: 18px;
+  margin: 0;
+}
+
+.demo-persist span,
+.demo-persist li {
+  color: #56616b;
+  font-size: 12px;
+}
+
 .demo-preview {
   flex: 1;
   min-height: 180px;
@@ -208,6 +238,17 @@ h1 {
   margin: 0;
 }
 
+.demo-source-card {
+  display: grid;
+  gap: 3px;
+}
+
+.demo-source-card a,
+.demo-source-card p {
+  margin: 0;
+  color: var(--ai-chat-muted-fg);
+}
+
 .demo-prefix {
   display: grid;
   width: 34px;
@@ -228,6 +269,13 @@ h1 {
   border: 1px solid var(--ai-chat-border);
   border-radius: 6px;
   cursor: pointer;
+}
+
+.demo-composer-state {
+  align-self: center;
+  color: var(--ai-chat-muted-fg);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .shadcn-demo {
