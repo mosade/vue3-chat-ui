@@ -188,6 +188,26 @@ h1 {
   margin: 0;
 }
 
+.demo-trace-card {
+  display: grid;
+  gap: 4px;
+}
+
+.demo-trace-card span {
+  color: var(--ai-chat-muted-fg);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.demo-trace-card strong {
+  color: var(--ai-chat-fg);
+}
+
+.demo-trace-card p {
+  margin: 0;
+}
+
 .demo-prefix {
   display: grid;
   width: 34px;
@@ -465,6 +485,37 @@ h1 {
   color: #71717a;
   font-size: 12px;
   text-transform: capitalize;
+}
+
+.shadcn-trace-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.shadcn-trace-row__kind {
+  padding: 2px 7px;
+  color: #52525b;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.shadcn-trace-row strong {
+  display: block;
+  color: #18181b;
+}
+
+.shadcn-trace-row p,
+.shadcn-trace-row small {
+  display: block;
+  margin: 3px 0 0;
+  color: #71717a;
+  line-height: 1.45;
 }
 
 .shadcn-composer-prefix {

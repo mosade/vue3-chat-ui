@@ -2,11 +2,27 @@ export type AiChatRole = 'user' | 'assistant' | 'system' | 'error'
 
 export type AiChatMessageStatus = 'pending' | 'streaming' | 'done' | 'error'
 
+export type AiChatTraceKind = 'reasoning' | 'search' | 'tool' | 'source'
+
+export type AiChatTraceStatus = 'pending' | 'done' | 'error'
+
+export interface AiChatTrace {
+  id: string
+  kind: AiChatTraceKind
+  title: string
+  content?: string
+  status?: AiChatTraceStatus
+  items?: string[]
+  createdAt?: number
+  meta?: Record<string, unknown>
+}
+
 export interface AiChatMessage {
   id: string
   role: AiChatRole
   content: string
   status?: AiChatMessageStatus
+  traces?: AiChatTrace[]
   createdAt?: number
   meta?: Record<string, unknown>
 }
@@ -17,6 +33,8 @@ export interface AiChatSendContext {
   signal: AbortSignal
   append: (chunk: string) => void
   update: (message: Partial<AiChatMessage>) => void
+  appendTrace: (trace: Omit<AiChatTrace, 'id' | 'createdAt'> & Partial<Pick<AiChatTrace, 'id' | 'createdAt'>>) => string
+  updateTrace: (id: string, trace: Partial<AiChatTrace>) => void
 }
 
 export interface AiChatAdapter {

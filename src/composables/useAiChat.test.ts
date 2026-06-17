@@ -37,6 +37,41 @@ describe('useAiChat', () => {
     })
   })
 
+  it('appends and updates public trace events on the assistant message', async () => {
+    const chat = useAiChat({
+      onSend: async ({ appendTrace, updateTrace }) => {
+        const traceId = appendTrace({
+          kind: 'search',
+          title: 'Searching docs',
+          content: 'Looking through component documentation',
+          status: 'pending'
+        })
+
+        updateTrace(traceId, {
+          content: 'Found the public slot API',
+          status: 'done'
+        })
+
+        return 'Trace complete'
+      }
+    })
+
+    await chat.send('Show process')
+
+    expect(chat.messages.value[1]).toMatchObject({
+      role: 'assistant',
+      content: 'Trace complete',
+      traces: [
+        {
+          kind: 'search',
+          title: 'Searching docs',
+          content: 'Found the public slot API',
+          status: 'done'
+        }
+      ]
+    })
+  })
+
   it('uses onSend before adapter when both are provided', async () => {
     const adapter = { send: vi.fn(async () => 'adapter') }
     const onSend = vi.fn(async () => 'callback')

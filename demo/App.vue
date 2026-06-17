@@ -87,12 +87,43 @@ const wait = (ms: number, signal: AbortSignal) =>
     )
   })
 
-const sendDemoMessage = async ({ prompt, append, signal }: AiChatSendContext) => {
+const sendDemoMessage = async ({
+  prompt,
+  append,
+  appendTrace,
+  updateTrace,
+  signal
+}: AiChatSendContext) => {
   if (failNext.value) {
     failNext.value = false
-    await wait(300, signal)
+    await wait(800, signal)
     throw new Error('Demo adapter failed on purpose. Press Retry last prompt.')
   }
+
+  const thinkingTrace = appendTrace({
+    kind: 'reasoning',
+    title: 'Thinking summary',
+    content: 'Turning the prompt into a short answer plan.',
+    status: 'pending'
+  })
+  await wait(580, signal)
+  updateTrace(thinkingTrace, {
+    content: 'Plan ready: explain adapter flow, streaming, and stop behavior.',
+    status: 'done'
+  })
+
+  const searchTrace = appendTrace({
+    kind: 'search',
+    title: 'Searching data',
+    content: 'Checking local component docs and public type definitions.',
+    status: 'pending',
+    items: ['README.md', 'src/types.ts']
+  })
+  await wait(880, signal)
+  updateTrace(searchTrace, {
+    content: 'Found AiChatAdapter, AiChatSendContext, slots, and CSS variables.',
+    status: 'done'
+  })
 
   const chunks = [
     `Received: "${prompt}". `,
@@ -102,17 +133,44 @@ const sendDemoMessage = async ({ prompt, append, signal }: AiChatSendContext) =>
   ]
 
   for (const chunk of chunks) {
-    await wait(260, signal)
+    await wait(560, signal)
     append(chunk)
   }
 }
 
-const sendShadcnMessage = async ({ prompt, append, signal }: AiChatSendContext) => {
+const sendShadcnMessage = async ({
+  prompt,
+  append,
+  appendTrace,
+  updateTrace,
+  signal
+}: AiChatSendContext) => {
   if (shadcnFailNext.value) {
     shadcnFailNext.value = false
     await wait(240, signal)
     throw new Error('The shadcn-style adapter returned a demo error.')
   }
+
+  const traceId = appendTrace({
+    kind: 'tool',
+    title: 'Reading workspace',
+    content: 'Inspecting package exports, demo state, and style tokens.',
+    status: 'pending',
+    items: ['src/index.ts', 'demo/style.css']
+  })
+  await wait(220, signal)
+  updateTrace(traceId, {
+    content: 'Workspace inspection complete. No external provider is required.',
+    status: 'done'
+  })
+
+  appendTrace({
+    kind: 'source',
+    title: 'Source notes',
+    content: 'This is a mock trace supplied by adapter code, not hidden reasoning.',
+    status: 'done',
+    items: ['AiChatSendContext.appendTrace', 'AiChatSendContext.updateTrace']
+  })
 
   const chunks = [
     `Prompt received: ${prompt}. `,
@@ -221,6 +279,14 @@ const shadcnMessageCount = computed(() => shadcnMessages.value.length)
             <span>{{ message.status ?? 'done' }}</span>
           </template>
 
+          <template #message-trace="{ trace }">
+            <div class="demo-trace-card">
+              <span>{{ trace.kind }}</span>
+              <strong>{{ trace.title }}</strong>
+              <p v-if="trace.content">{{ trace.content }}</p>
+            </div>
+          </template>
+
           <template #composer-prefix>
             <span class="demo-prefix" aria-hidden="true">AI</span>
           </template>
@@ -319,6 +385,18 @@ const shadcnMessageCount = computed(() => shadcnMessages.value.length)
 
             <template #message-actions="{ message }">
               <span class="shadcn-message-status">{{ message.status ?? 'done' }}</span>
+            </template>
+
+            <template #message-trace="{ trace }">
+              <div class="shadcn-trace-row">
+                <span class="shadcn-trace-row__kind">{{ trace.kind }}</span>
+                <div>
+                  <strong>{{ trace.title }}</strong>
+                  <p v-if="trace.content">{{ trace.content }}</p>
+                  <small v-if="trace.items?.length">{{ trace.items.join(' / ') }}</small>
+                </div>
+                <span v-if="trace.status" class="shadcn-message-status">{{ trace.status }}</span>
+              </div>
             </template>
 
             <template #composer-prefix>

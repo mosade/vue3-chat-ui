@@ -1,10 +1,26 @@
 <script setup lang="ts">
-import type { AiChatMessage } from '../types'
+import type { AiChatMessage, AiChatTrace } from '../types'
 
 defineProps<{
   message: AiChatMessage
   index: number
 }>()
+
+const traceLabel = (trace: AiChatTrace) => {
+  if (trace.kind === 'reasoning') return 'Thinking'
+  if (trace.kind === 'search') return 'Searching data'
+  if (trace.kind === 'tool') return 'Tool'
+  return 'Source'
+}
+
+const tracesOpen = (traces: AiChatTrace[]) =>
+  traces.some((trace) => trace.status === 'pending' || trace.status === 'error')
+
+const tracesSummary = (traces: AiChatTrace[]) => {
+  if (traces.some((trace) => trace.status === 'error')) return 'Process needs attention'
+  if (traces.some((trace) => trace.status === 'pending')) return 'Working...'
+  return 'Process'
+}
 </script>
 
 <template>
@@ -22,6 +38,41 @@ defineProps<{
     </div>
 
     <div class="ai-chat__message-body">
+      <details
+        v-if="message.traces?.length"
+        class="ai-chat__traces"
+        aria-label="Response process"
+        :open="tracesOpen(message.traces)"
+      >
+        <summary class="ai-chat__traces-summary">
+          <span>{{ tracesSummary(message.traces) }}</span>
+          <span class="ai-chat__traces-count">{{ message.traces.length }}</span>
+        </summary>
+        <slot name="message-traces" :message="message" :index="index" :traces="message.traces">
+          <div
+            v-for="trace in message.traces"
+            :key="trace.id"
+            class="ai-chat__trace"
+            :class="[
+              `ai-chat__trace--${trace.kind}`,
+              trace.status ? `ai-chat__trace--${trace.status}` : ''
+            ]"
+          >
+            <slot name="message-trace" :trace="trace" :message="message" :index="index">
+              <div class="ai-chat__trace-header">
+                <span class="ai-chat__trace-kind">{{ traceLabel(trace) }}</span>
+                <span v-if="trace.status" class="ai-chat__trace-status">{{ trace.status }}</span>
+              </div>
+              <strong class="ai-chat__trace-title">{{ trace.title }}</strong>
+              <p v-if="trace.content" class="ai-chat__trace-content">{{ trace.content }}</p>
+              <ul v-if="trace.items?.length" class="ai-chat__trace-items">
+                <li v-for="item in trace.items" :key="item">{{ item }}</li>
+              </ul>
+            </slot>
+          </div>
+        </slot>
+      </details>
+
       <div class="ai-chat__message-content">
         <slot name="message-content" :message="message" :index="index" :status="message.status">
           {{ message.content }}

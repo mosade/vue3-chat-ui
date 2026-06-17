@@ -16,7 +16,17 @@ const props = withDefaults(
 const viewport = ref<HTMLElement | null>(null)
 
 watch(
-  () => props.messages.map((message) => `${message.id}:${message.content}:${message.status}`).join('|'),
+  () =>
+    props.messages
+      .map((message) =>
+        [
+          message.id,
+          message.content,
+          message.status,
+          JSON.stringify(message.traces ?? [])
+        ].join(':')
+      )
+      .join('|'),
   async () => {
     if (!props.autoScroll) {
       return
@@ -55,6 +65,12 @@ watch(
         </template>
         <template #message-actions="slotProps">
           <slot name="message-actions" v-bind="slotProps" />
+        </template>
+        <template #message-traces="slotProps">
+          <slot name="message-traces" v-bind="slotProps" />
+        </template>
+        <template #message-trace="slotProps">
+          <slot name="message-trace" v-bind="slotProps" />
         </template>
       </ChatMessage>
     </slot>

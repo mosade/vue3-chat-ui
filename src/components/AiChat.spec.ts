@@ -27,6 +27,91 @@ describe('AiChat', () => {
     expect(wrapper.find('.ai-chat__message--assistant').text()).toContain('Hi there')
   })
 
+  it('renders public reasoning and search traces for assistant messages', () => {
+    const messages: AiChatMessage[] = [
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: 'Answer',
+        status: 'done',
+        traces: [
+          {
+            id: 't1',
+            kind: 'reasoning',
+            title: 'Thinking',
+            content: 'Planning a concise answer',
+            status: 'done'
+          },
+          {
+            id: 't2',
+            kind: 'search',
+            title: 'Searching data',
+            content: 'Checked component docs',
+            status: 'done',
+            items: ['README.md', 'src/types.ts']
+          }
+        ]
+      }
+    ]
+
+    const wrapper = mount(AiChat, {
+      props: { defaultMessages: messages }
+    })
+
+    expect(wrapper.find('.ai-chat__traces').exists()).toBe(true)
+    expect(wrapper.find('.ai-chat__traces').element.compareDocumentPosition(
+      wrapper.find('.ai-chat__message-content').element
+    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(wrapper.find('.ai-chat__traces').attributes('open')).toBeUndefined()
+    expect(wrapper.text()).toContain('Thinking')
+    expect(wrapper.text()).toContain('Planning a concise answer')
+    expect(wrapper.text()).toContain('Searching data')
+    expect(wrapper.text()).toContain('README.md')
+  })
+
+  it('expands trace details while traces are pending or errored', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: 'Answer',
+            traces: [
+              {
+                id: 'pending-trace',
+                kind: 'reasoning',
+                title: 'Thinking',
+                status: 'pending'
+              }
+            ]
+          },
+          {
+            id: 'a2',
+            role: 'assistant',
+            content: 'Another answer',
+            traces: [
+              {
+                id: 'error-trace',
+                kind: 'search',
+                title: 'Search failed',
+                status: 'error'
+              }
+            ]
+          }
+        ]
+      }
+    })
+
+    const traces = wrapper.findAll('.ai-chat__traces')
+
+    expect(traces).toHaveLength(2)
+    expect(traces[0].attributes('open')).toBeDefined()
+    expect(traces[1].attributes('open')).toBeDefined()
+    expect(wrapper.text()).toContain('Working...')
+    expect(wrapper.text()).toContain('Process needs attention')
+  })
+
   it('submits composer input with Enter', async () => {
     const send = vi.fn(async () => 'Answer')
     const wrapper = mount(AiChat, {
@@ -154,5 +239,34 @@ describe('AiChat', () => {
     expect(wrapper.find('.prefix-slot').exists()).toBe(true)
     expect(wrapper.find('.composer-action-slot').exists()).toBe(true)
     expect(wrapper.text()).toContain('Custom footer')
+  })
+
+  it('renders custom trace slots', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: 'Slot trace text',
+            traces: [
+              {
+                id: 'trace-1',
+                kind: 'tool',
+                title: 'Tool call',
+                content: 'Reading data',
+                status: 'done'
+              }
+            ]
+          }
+        ]
+      },
+      slots: {
+        'message-trace':
+          '<template #message-trace="{ trace }"><span class="trace-slot">{{ trace.kind }}: {{ trace.title }}</span></template>'
+      }
+    })
+
+    expect(wrapper.find('.trace-slot').text()).toBe('tool: Tool call')
   })
 })

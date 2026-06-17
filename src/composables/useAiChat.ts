@@ -1,9 +1,10 @@
-import { computed, ref, unref, type MaybeRef, type Ref } from 'vue'
+import { computed, ref, unref, watch, type MaybeRef, type Ref } from 'vue'
 import type {
   AiChatAdapter,
   AiChatError,
   AiChatMessage,
-  AiChatSendContext
+  AiChatSendContext,
+  AiChatTrace
 } from '../types'
 
 export interface UseAiChatOptions {
@@ -62,19 +63,24 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
 
   const isControlled = computed(() => Array.isArray(unref(options.messages)))
 
+  watch(
+    () => unref(options.messages),
+    (nextMessages) => {
+      if (Array.isArray(nextMessages)) {
+        internalMessages.value = [...nextMessages]
+      }
+    },
+    { immediate: true }
+  )
+
   const messages = computed<AiChatMessage[]>({
     get() {
-      const controlledMessages = unref(options.messages)
-      return isControlled.value && controlledMessages
-        ? [...controlledMessages]
-        : internalMessages.value
+      return internalMessages.value
     },
     set(nextMessages) {
       const normalized = [...nextMessages]
 
-      if (!isControlled.value) {
-        internalMessages.value = normalized
-      }
+      internalMessages.value = normalized
 
       options.onUpdateMessages?.(normalized)
     }
@@ -99,6 +105,45 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
             ...message,
             content: `${message.content}${chunk}`,
             status: 'streaming'
+          }
+        : message
+    )
+  }
+
+  const appendTraceToMessage = (
+    messageId: string,
+    trace: Omit<AiChatTrace, 'id' | 'createdAt'> & Partial<Pick<AiChatTrace, 'id' | 'createdAt'>>
+  ) => {
+    const nextTrace: AiChatTrace = {
+      ...trace,
+      id: trace.id ?? createId(),
+      createdAt: trace.createdAt ?? Date.now()
+    }
+
+    messages.value = messages.value.map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            traces: [...(message.traces ?? []), nextTrace]
+          }
+        : message
+    )
+
+    return nextTrace.id
+  }
+
+  const updateTraceInMessage = (
+    messageId: string,
+    traceId: string,
+    patch: Partial<AiChatTrace>
+  ) => {
+    messages.value = messages.value.map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            traces: (message.traces ?? []).map((trace) =>
+              trace.id === traceId ? { ...trace, ...patch, id: trace.id } : trace
+            )
           }
         : message
     )
@@ -158,7 +203,9 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
         messages: messages.value,
         signal: controller.signal,
         append: (chunk) => appendToMessage(assistantMessage.id, chunk),
-        update: (message) => updateMessage(assistantMessage.id, message)
+        update: (message) => updateMessage(assistantMessage.id, message),
+        appendTrace: (trace) => appendTraceToMessage(assistantMessage.id, trace),
+        updateTrace: (id, trace) => updateTraceInMessage(assistantMessage.id, id, trace)
       }
       const result = await sendHandler(context)
 

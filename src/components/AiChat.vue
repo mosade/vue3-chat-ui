@@ -115,6 +115,12 @@ const clear = () => {
       <template #message-actions="slotProps">
         <slot name="message-actions" v-bind="slotProps" />
       </template>
+      <template #message-traces="slotProps">
+        <slot name="message-traces" v-bind="slotProps" />
+      </template>
+      <template #message-trace="slotProps">
+        <slot name="message-trace" v-bind="slotProps" />
+      </template>
     </ChatMessageList>
 
     <ChatComposer

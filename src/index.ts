@@ -6,7 +6,10 @@ export type {
   AiChatMessage,
   AiChatMessageStatus,
   AiChatRole,
-  AiChatSendContext
+  AiChatSendContext,
+  AiChatTrace,
+  AiChatTraceKind,
+  AiChatTraceStatus
 } from './types'
 export { useAiChat } from './composables/useAiChat'
 export type { UseAiChatOptions, UseAiChatReturn } from './composables/useAiChat'
