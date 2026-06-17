@@ -1,3 +1,5 @@
 .git-store/
 .agents/
 .codex/
+node_modules/
+dist/

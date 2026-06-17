@@ -1,0 +1,41 @@
+{
+  "name": "vue3-ai-chat",
+  "version": "0.1.0",
+  "description": "Reusable Vue 3 AI chat component and headless composable.",
+  "type": "module",
+  "private": false,
+  "main": "./dist/vue3-ai-chat.umd.cjs",
+  "module": "./dist/vue3-ai-chat.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/vue3-ai-chat.js",
+      "require": "./dist/vue3-ai-chat.umd.cjs"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build && vue-tsc -p tsconfig.build.json --declaration --emitDeclarationOnly",
+    "test": "vitest run",
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.32",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.19",
+    "vitest": "^2.1.9",
+    "vue": "^3.5.16",
+    "vue-tsc": "^2.2.10"
+  }
+}
