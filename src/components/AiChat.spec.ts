@@ -146,6 +146,36 @@ describe('AiChat', () => {
     expect(wrapper.text()).toContain('README.md')
   })
 
+  it('renders citations from assistant message sources', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: 'Answer with sources',
+            status: 'done',
+            sources: [
+              {
+                id: 's1',
+                title: 'Vue Documentation',
+                url: 'https://vuejs.org',
+                snippet: 'Vue is a JavaScript framework.'
+              }
+            ]
+          }
+        ]
+      }
+    })
+
+    const source = wrapper.find('.ai-chat__source')
+
+    expect(wrapper.find('.ai-chat__sources').exists()).toBe(true)
+    expect(source.text()).toContain('Vue Documentation')
+    expect(source.text()).toContain('Vue is a JavaScript framework.')
+    expect(source.find('a').attributes('href')).toBe('https://vuejs.org')
+  })
+
   it('expands trace details while traces are pending or errored', () => {
     const wrapper = mount(AiChat, {
       props: {

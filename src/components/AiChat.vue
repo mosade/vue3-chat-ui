@@ -253,6 +253,12 @@ const renderMessageContent = (message: AiChatMessage) => {
       <template #message-trace="slotProps">
         <slot name="message-trace" v-bind="slotProps" />
       </template>
+      <template #message-sources="slotProps">
+        <slot name="message-sources" v-bind="slotProps" />
+      </template>
+      <template #message-source="slotProps">
+        <slot name="message-source" v-bind="slotProps" />
+      </template>
     </ChatMessageList>
 
     <ChatComposer

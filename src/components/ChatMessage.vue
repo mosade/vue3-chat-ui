@@ -88,6 +88,37 @@ const tracesSummary = (traces: AiChatTrace[]) => {
         </span>
       </div>
 
+      <div v-if="message.sources?.length" class="ai-chat__sources" aria-label="Sources">
+        <slot name="message-sources" :message="message" :index="index" :sources="message.sources">
+          <div
+            v-for="(source, sourceIndex) in message.sources"
+            :key="source.id"
+            class="ai-chat__source"
+          >
+            <slot
+              name="message-source"
+              :source="source"
+              :message="message"
+              :index="index"
+              :source-index="sourceIndex"
+            >
+              <span class="ai-chat__source-index">{{ source.index ?? sourceIndex + 1 }}</span>
+              <a
+                v-if="source.url"
+                class="ai-chat__source-title"
+                :href="source.url"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {{ source.title }}
+              </a>
+              <strong v-else class="ai-chat__source-title">{{ source.title }}</strong>
+              <span v-if="source.snippet" class="ai-chat__source-snippet">{{ source.snippet }}</span>
+            </slot>
+          </div>
+        </slot>
+      </div>
+
       <div class="ai-chat__message-actions">
         <slot name="message-actions" :message="message" :index="index" :status="message.status" />
       </div>

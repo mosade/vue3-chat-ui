@@ -17,11 +17,21 @@ export interface AiChatTrace {
   meta?: Record<string, unknown>
 }
 
+export interface AiChatSource {
+  id: string
+  title: string
+  url?: string
+  snippet?: string
+  index?: number
+  meta?: Record<string, unknown>
+}
+
 export interface AiChatMessage {
   id: string
   role: AiChatRole
   content: string
   status?: AiChatMessageStatus
+  sources?: AiChatSource[]
   traces?: AiChatTrace[]
   createdAt?: number
   meta?: Record<string, unknown>
