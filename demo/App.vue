@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import {
-  AiChat,
-  ChatComposer,
-  markdownParser,
-  type AiChatMessage,
-  type AiChatMessageSlotContext,
-  type AiChatSendContext
-} from '../src'
+import { AiChat, markdownParser, type AiChatMessage, type AiChatSendContext } from '../src'
 import ShadcnDemo from './ShadcnDemo.vue'
 
 type DemoVariant = 'default' | 'shadcn'
@@ -32,28 +25,7 @@ const messages = ref<AiChatMessage[]>([
     ]
   }
 ])
-const compactTheme = ref(false)
 const failNext = ref(false)
-
-const themeStyle = computed(() =>
-  compactTheme.value
-    ? {
-        '--ai-chat-bg': '#fbfbf9',
-        '--ai-chat-fg': '#202124',
-        '--ai-chat-muted-fg': '#6f716b',
-        '--ai-chat-border': '#d9d7ce',
-        '--ai-chat-user-bg': '#374151',
-        '--ai-chat-user-fg': '#ffffff',
-        '--ai-chat-assistant-bg': '#eef2f3',
-        '--ai-chat-assistant-fg': '#172026',
-        '--ai-chat-error-bg': '#fde8e8',
-        '--ai-chat-error-fg': '#9f1239',
-        '--ai-chat-radius': '6px',
-        '--ai-chat-gap': '10px',
-        '--ai-chat-font-size': '13px'
-      }
-    : {}
-)
 
 const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -134,7 +106,6 @@ const sendDemoMessage = async ({
   })
 }
 
-const messageCount = computed(() => messages.value.length)
 const prefillComposer = () => {
   composerInput.value = 'Summarize the new AiChat headless API with sources.'
 }
@@ -148,9 +119,7 @@ const recordPersist = (
   ].slice(0, 5)
 }
 
-const roleLabel = (message: AiChatMessage) => (message.role === 'user' ? 'You' : 'AI')
-const traceSummary = (context: AiChatMessageSlotContext) =>
-  context.phase ? `${context.phase}${context.status ? ` / ${context.status}` : ''}` : context.status ?? 'done'
+const messageCount = computed(() => messages.value.length)
 </script>
 
 <template>
@@ -176,50 +145,26 @@ const traceSummary = (context: AiChatMessageSlotContext) =>
       </button>
     </nav>
 
-    <section v-if="activeVariant === 'default'" class="demo-workspace">
-      <aside class="demo-panel" aria-label="Demo controls">
-        <div>
-          <p class="demo-eyebrow">vue3-ai-chat</p>
-          <h1>Headless AI chat component</h1>
-          <p class="demo-copy">
-            Five top-level slots, replaceable parser, explicit CSS presets, and
-            provider-neutral state.
-          </p>
-        </div>
-
-        <div class="demo-controls">
-          <label>
-            <input v-model="compactTheme" type="checkbox" />
-            Compact embedded theme
-          </label>
-          <label>
-            <input v-model="failNext" type="checkbox" />
-            Make next response fail
-          </label>
+    <section v-if="activeVariant === 'default'" class="google-demo">
+      <section class="google-hero">
+        <p class="google-eyebrow">Clean white demo</p>
+        <h1>Ask AiChat</h1>
+        <p>
+          A Google-style surface for the headless slot API: bright, quiet, and centered
+          around the prompt.
+        </p>
+        <div class="google-actions">
           <button class="demo-inline-button" type="button" data-demo-prefill @click="prefillComposer">
-            Prefill controlled composer
+            Prefill prompt
           </button>
+          <button class="demo-inline-button" type="button" @click="failNext = true">
+            Fail next
+          </button>
+          <span>{{ messageCount }} messages</span>
         </div>
+      </section>
 
-        <div class="demo-stat">
-          <span>Messages</span>
-          <strong>{{ messageCount }}</strong>
-        </div>
-
-        <div class="demo-persist" aria-label="Persist events">
-          <strong>Persist events</strong>
-          <span v-if="persistEvents.length === 0">No persisted changes yet</span>
-          <ol v-else>
-            <li v-for="event in persistEvents" :key="event">{{ event }}</li>
-          </ol>
-        </div>
-
-        <pre class="demo-preview" aria-label="Controlled messages preview">{{
-          JSON.stringify(messages.slice(-3), null, 2)
-        }}</pre>
-      </aside>
-
-      <section class="demo-chat" :style="themeStyle">
+      <section class="google-chat">
         <AiChat
           v-model:messages="messages"
           v-model:input="composerInput"
@@ -230,9 +175,9 @@ const traceSummary = (context: AiChatMessageSlotContext) =>
           auto-focus
         >
           <template #header="{ messages: slotMessages, active, actions, showJumpToLatest, jumpToLatest }">
-            <div class="demo-chat-header">
+            <div class="google-chat-header">
               <div>
-                <strong>Support Copilot</strong>
+                <strong>AiChat</strong>
                 <span>{{ active ? 'Responding' : `${slotMessages.length} messages` }}</span>
               </div>
               <div class="demo-header-actions">
@@ -252,8 +197,8 @@ const traceSummary = (context: AiChatMessageSlotContext) =>
           </template>
 
           <template #empty="{ actions }">
-            <div class="demo-empty">
-              <strong>No messages yet</strong>
+            <div class="google-empty">
+              <strong>How can AiChat help?</strong>
               <button class="demo-inline-button" type="button" @click="actions.send('Show the new API')">
                 Ask about the API
               </button>
@@ -262,11 +207,10 @@ const traceSummary = (context: AiChatMessageSlotContext) =>
 
           <template #message="context">
             <article class="demo-message" :class="`demo-message--${context.message.role}`">
-              <div class="demo-avatar">{{ roleLabel(context.message) }}</div>
               <div class="demo-message__body">
                 <div class="demo-message__meta">
-                  <strong>{{ roleLabel(context.message) }}</strong>
-                  <span>{{ traceSummary(context) }}</span>
+                  <strong>{{ context.message.role === 'user' ? 'You' : 'AiChat' }}</strong>
+                  <span>{{ context.phase ?? context.status ?? 'done' }}</span>
                 </div>
                 <div
                   v-if="context.parsed.type === 'html'"
@@ -353,22 +297,40 @@ const traceSummary = (context: AiChatMessageSlotContext) =>
           </template>
 
           <template #input="{ draft, canSend, active, actions }">
-            <div class="demo-input">
-              <ChatComposer
-                :input="draft"
-                :active="active"
+            <div class="google-input">
+              <textarea
+                aria-label="Message prompt"
+                rows="1"
+                :value="draft"
                 :disabled="active"
-                placeholder="Ask the demo adapter..."
-                @update:input="actions.updateDraft"
-                @submit="actions.send()"
-                @stop="actions.stop()"
+                placeholder="Ask anything"
+                @input="actions.updateDraft(($event.target as HTMLTextAreaElement).value)"
+                @keydown.enter.exact.prevent="actions.send()"
               />
-              <span class="demo-composer-state">{{ draft.length }} chars / {{ canSend ? 'ready' : 'waiting' }}</span>
+              <button
+                v-if="active"
+                class="google-send"
+                type="button"
+                aria-label="Stop response"
+                @click="actions.stop()"
+              >
+                Stop
+              </button>
+              <button
+                v-else
+                class="google-send"
+                type="button"
+                aria-label="Send message"
+                :disabled="!canSend"
+                @click="actions.send()"
+              >
+                Send
+              </button>
             </div>
           </template>
 
           <template #footer>
-            Parser, actions, persistence hooks, controlled input, and CSS presets are composed explicitly.
+            <span>Markdown rendering, sources, traces, persistence: {{ persistEvents[0] ?? 'ready' }}</span>
           </template>
         </AiChat>
       </section>

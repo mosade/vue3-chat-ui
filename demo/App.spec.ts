@@ -1,5 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { nextTick } from 'vue'
 import App from './App.vue'
 
@@ -12,37 +14,29 @@ describe('demo App', () => {
     })
   })
 
-  it('switches to the shadcn-style demo variant', async () => {
+  it('renders the Google-style default demo and switches to the shadcn preset demo', async () => {
     const wrapper = mount(App)
 
-    expect(wrapper.text()).toContain('Headless AI chat component')
+    expect(wrapper.text()).toContain('Ask AiChat')
+    expect(wrapper.find('.google-demo').exists()).toBe(true)
+    expect(wrapper.find('.google-input').exists()).toBe(true)
 
     await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
 
-    expect(wrapper.text()).toContain('shadcn-style workspace')
+    expect(wrapper.text()).toContain('shadcn preset')
     expect(wrapper.find('.shadcn-demo .ai-chat').exists()).toBe(true)
   })
 
-  it('renders custom shadcn message action UI', async () => {
+  it('renders the shadcn demo with the preset/default chat building blocks', async () => {
     const wrapper = mount(App)
 
     await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
 
-    expect(wrapper.find('.shadcn-message-actions').exists()).toBe(true)
-    expect(wrapper.find('[data-shadcn-action="copy"]').exists()).toBe(true)
-    expect(wrapper.find('[data-shadcn-action="edit"]').exists()).toBe(true)
-    expect(wrapper.find('[data-shadcn-action="regenerate"]').exists()).toBe(true)
-  })
-
-  it('renders a custom shadcn edit form', async () => {
-    const wrapper = mount(App)
-
-    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
-    await wrapper.find('[data-shadcn-action="edit"]').trigger('click')
-
-    expect(wrapper.find('.shadcn-edit-form').exists()).toBe(true)
-    expect(wrapper.find('[aria-label="Shadcn edit message"]').exists()).toBe(true)
-    expect(wrapper.find('[data-shadcn-edit="save"]').exists()).toBe(true)
+    expect(wrapper.find('.ai-chat--shadcn').exists()).toBe(true)
+    expect(wrapper.find('.ai-chat__message').exists()).toBe(true)
+    expect(wrapper.find('.ai-chat__composer').exists()).toBe(true)
+    expect(wrapper.find('.shadcn-message').exists()).toBe(false)
+    expect(wrapper.find('.shadcn-composer').exists()).toBe(false)
   })
 
   it('renders a custom shadcn retry action for errored responses', async () => {
@@ -54,7 +48,7 @@ describe('demo App', () => {
     await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
     await new Promise((resolve) => setTimeout(resolve, 280))
 
-    expect(wrapper.find('[data-shadcn-action="retry"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Retry response"]').exists()).toBe(true)
   })
 
   it('does not show process traces before the user sends a message', () => {
@@ -79,16 +73,31 @@ describe('demo App', () => {
   it('showcases newly added chat features', async () => {
     const wrapper = mount(App)
 
-    expect(wrapper.text()).toContain('Five top-level slots')
+    expect(wrapper.text()).toContain('Clean white demo')
     expect(wrapper.text()).toContain('Markdown rendering')
     expect(wrapper.find('.demo-sources').exists()).toBe(true)
     expect(wrapper.text()).toContain('Vue API Reference')
-    expect(wrapper.text()).toContain('Persist events')
+    expect(wrapper.text()).toContain('persistence')
 
     await wrapper.find('[data-demo-prefill]').trigger('click')
 
     expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain(
       'Summarize the new AiChat headless API'
     )
+  })
+
+  it('styles custom slot surfaces used by the demo', () => {
+    const css = readFileSync(resolve(__dirname, 'style.css'), 'utf8')
+
+    expect(css).toContain('.google-demo')
+    expect(css).toContain('.google-hero')
+    expect(css).toContain('.google-input')
+    expect(css).toContain('.demo-message {')
+    expect(css).toContain('.demo-message--user')
+    expect(css).toContain('.demo-message__body')
+    expect(css).toContain('position: sticky')
+    expect(css).toContain('bottom: 0')
+    expect(css).toContain('box-shadow:')
+    expect(css).toContain('.shadcn-demo__chat .ai-chat--shadcn')
   })
 })
