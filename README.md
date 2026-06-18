@@ -1,20 +1,34 @@
 # vue3-ai-chat
 
-Headless Vue 3 AI chat state and slot orchestration. The package provides a
-provider-neutral `useAiChat` state machine, a headerless `AiChat` root component,
-replaceable content parsers, optional building blocks, and explicit CSS presets.
+`vue3-ai-chat` 是一个 Vue 3 AI Chat 组件库。它把聊天状态、消息生命周期、
+输入框、滚动、重试、编辑、复制等交互封装在 `useAiChat` 和 `AiChat` 中，
+同时把内容渲染独立到 `AiContent`，方便接入任意 Markdown/富文本 parser。
 
-## Install
+核心特点：
+
+- Provider-neutral：不绑定任何模型服务或请求协议。
+- Headless-first：`AiChat` 只负责状态和 slot 编排。
+- 可替换内容解析：通过 `contentParser` 或 `AiContent :parser` 接入 parser。
+- 支持流式渲染：内容按稳定 block 和 live tail 渲染，减少图片闪烁和 DOM 重建。
+- 显式 CSS：包入口不自动引入样式，需要主动导入 preset。
+
+## 安装
 
 ```bash
 npm install vue3-ai-chat vue
 ```
 
-## Basic Usage
+如果需要在项目中使用完整 Markdown 解析器，可以自行安装，例如：
+
+```bash
+npm install markdown-it
+```
+
+## 基础用法
 
 ```vue
 <script setup lang="ts">
-import { AiChat, markdownParser, type AiChatAdapter } from 'vue3-ai-chat'
+import { AiChat, AiContent, markdownParser, type AiChatAdapter } from 'vue3-ai-chat'
 import 'vue3-ai-chat/base.css'
 
 const adapter: AiChatAdapter = {
@@ -25,36 +39,37 @@ const adapter: AiChatAdapter = {
 </script>
 
 <template>
-  <AiChat :adapter="adapter" :parser="markdownParser">
+  <AiChat :adapter="adapter" :content-parser="markdownParser">
     <template #header="{ messages, actions }">
-      <button type="button" @click="actions.clear()">Clear {{ messages.length }}</button>
+      <button type="button" @click="actions.clear()">
+        清空 {{ messages.length }}
+      </button>
     </template>
 
-    <template #message="{ message, parsed, actions }">
+    <template #message="{ message, status, actions }">
       <div v-if="message.role === 'user'" class="user-message">
         {{ message.content }}
       </div>
-      <div v-else-if="parsed.type === 'html'" class="assistant-message" v-html="parsed.content" />
-      <p v-else class="assistant-message">{{ parsed.content }}</p>
 
-      <button v-if="message.content" type="button" @click="actions.copy()">Copy</button>
+      <AiContent
+        v-else
+        class="assistant-message"
+        :content="message.content"
+        :parser="markdownParser"
+        :streaming="status === 'streaming'"
+      />
 
-      <ol v-if="message.sources?.length" class="message-sources">
-        <li v-for="source in message.sources" :key="source.id">
-          <a v-if="source.url" :href="source.url" target="_blank" rel="noreferrer">
-            {{ source.title }}
-          </a>
-          <span v-else>{{ source.title }}</span>
-        </li>
-      </ol>
+      <button v-if="message.content" type="button" @click="actions.copy()">
+        复制
+      </button>
     </template>
   </AiChat>
 </template>
 ```
 
-## Core API
+## AiChat API
 
-`AiChat` exposes only five top-level slots:
+`AiChat` 暴露五个顶层 slot：
 
 | Slot | Context |
 | --- | --- |
@@ -64,22 +79,18 @@ const adapter: AiChatAdapter = {
 | `input` | `AiChatInputSlotContext` |
 | `footer` | `AiChatRootSlotContext` |
 
-The root component owns message state, input draft state, edit state, scroll
-state, and action wiring. Rendering is supplied by slots or by the exported
-building blocks.
+`AiChat` 负责消息状态、输入草稿、编辑状态、滚动状态和 action wiring。
+界面可以由 slot 完全自定义，也可以使用包内导出的默认 building blocks。
 
-## Parsers
+## 内容解析
 
-Default message content is parsed with the `contentParser` prop. The default
-parser is `plainTextParser`, which returns safe text content. Use
-`markdownParser` for the built-in minimal markdown renderer. The older `parser`
-prop remains as a compatibility alias during migration:
+推荐使用 `contentParser` 给 `AiChat` 默认消息渲染器传入内容 parser：
 
-```ts
-import { markdownParser, plainTextParser } from 'vue3-ai-chat'
+```vue
+<AiChat :adapter="adapter" :content-parser="markdownParser" />
 ```
 
-Custom parsers implement:
+自定义 parser 实现 `AiContentParser`：
 
 ```ts
 interface AiContentParser {
@@ -87,46 +98,61 @@ interface AiContentParser {
 }
 ```
 
+内置 parser：
+
+```ts
+import { markdownParser, plainTextParser } from 'vue3-ai-chat'
+```
+
+- `plainTextParser`：默认安全纯文本渲染。
+- `markdownParser`：轻量 Markdown 示例解析器，适合基础演示。
+- 更完整的 Markdown 能力建议接入 `markdown-it`、`mark-it` 等外部 parser。
+
 ## AiContent
 
-`AiContent` is the standalone content renderer. It accepts raw text content and
-can be used inside or outside `AiChat`:
+`AiContent` 是独立内容渲染组件，只接收原始文本内容，不依赖聊天消息、角色、
+adapter、traces 或 actions。
 
 ```vue
 <script setup lang="ts">
-import { AiContent, markdownParser } from 'vue3-ai-chat'
+import MarkdownIt from 'markdown-it'
+import { AiContent, type AiContentParser } from 'vue3-ai-chat'
+
+const markdownIt = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true
+})
+
+const parser: AiContentParser = {
+  parse: (content) => ({
+    type: 'html',
+    content: markdownIt.render(content)
+  })
+}
 </script>
 
 <template>
   <AiContent
     :content="content"
-    :parser="markdownParser"
+    :parser="parser"
     :streaming="streaming"
   />
 </template>
 ```
 
-For custom message slots, prefer rendering content explicitly:
+流式输出时，`AiContent` 会把内容拆成 stable blocks 和一个 live block：
 
-```vue
-<AiChat>
-  <template #message="{ message }">
-    <AiContent
-      :content="message.content"
-      :parser="markdownParser"
-      :streaming="message.status === 'streaming'"
-    />
-  </template>
-</AiChat>
-```
-
-`AiContent` renders content by stable blocks during streaming. Completed image
-blocks keep stable keys, so appending new chunks does not remount existing image
-nodes.
+- 已完成 block 会保持稳定 key。
+- stable block 的解析结果会缓存。
+- live block 会随着最新内容更新。
+- 未完成的 fenced code block 会临时补齐闭合符用于展示。
+- 未完成图片语法不会提前生成 image block。
+- 完整图片 block 使用稳定图片身份作为 key，后续 chunk 到来时不会 remount 已有图片节点。
 
 ## Adapter
 
-`adapter.send` receives an `AiChatSendContext`:
+`adapter.send` 接收 `AiChatSendContext`：
 
 ```ts
 const adapter: AiChatAdapter = {
@@ -134,7 +160,7 @@ const adapter: AiChatAdapter = {
     setPhase('searching')
     const traceId = appendTrace({
       kind: 'search',
-      title: 'Searching docs',
+      title: '搜索文档',
       status: 'pending'
     })
 
@@ -150,47 +176,50 @@ const adapter: AiChatAdapter = {
 }
 ```
 
-`phase` expresses the main assistant lifecycle. `traces` express public process
-events such as reasoning summaries, search, or tool calls. `sources` express
-final citations or references. These are intentionally separate fields.
+字段职责：
+
+- `phase`：表达 assistant 主生命周期，例如 searching、reasoning、answering。
+- `traces`：表达可展示的过程信息，例如 reasoning summary、搜索、工具调用。
+- `sources`：表达最终引用来源或参考资料。
+
+## Demo
+
+本仓库 demo 使用：
+
+- `markdown-it` 作为 demo 的 Markdown parser。
+- `docs/markdown-example.md` 作为 mock response 内容来源。
+- `https://picsum.photos/200/300` 图片和链接测试流式媒体渲染。
+- 不规则 chunk size 和 delay 模拟模型“吐字”式流式输出。
+
+运行：
+
+```bash
+npm run dev
+```
 
 ## Building Blocks
 
-The package exports optional building blocks:
+可选导出组件：
 
 ```ts
 import { AiContent, ChatComposer, ChatMessage, ChatMessageList } from 'vue3-ai-chat'
 ```
 
-They are ordinary components for composing your own UI. They are not required by
-the `AiChat` slot protocol.
+这些组件用于组合自定义 UI，不是 `AiChat` slot 协议的必需项。
 
 ## CSS Presets
 
-The package entry does not import CSS automatically. Import one or both presets
-explicitly:
+包入口不会自动导入 CSS。请按需显式导入：
 
 ```ts
 import 'vue3-ai-chat/base.css'
 import 'vue3-ai-chat/shadcn.css'
 ```
 
-`base.css` defines stable `.ai-chat` class styling. `shadcn.css` adds a
-shadcn-inspired token preset without any runtime dependency.
+- `base.css`：基础 `.ai-chat` 样式。
+- `shadcn.css`：shadcn 风格 token preset，无运行时依赖。
 
-## Breaking Changes
-
-- Removed the `markdown` prop. Use `parser`, `markdownParser`, or a custom parser.
-- Removed the fixed toolbar. Use `header` or another slot and call `actions.clear()`.
-- Removed `placeholder` from `AiChat`; placeholder belongs to `ChatComposer` or a custom `input` slot.
-- Package entry no longer imports CSS. Import `vue3-ai-chat/base.css` or `vue3-ai-chat/shadcn.css`.
-- Role-specific and nested message slots were removed. Use the single `message` slot and branch on `message.role`.
-- `AiChatTraceKind` no longer includes `source`. Process information goes in `traces`; final references go in `message.sources`.
-- `contentParser` is the preferred `AiChat` prop for the default message content renderer.
-- `parser` remains a compatibility alias during migration.
-- For full rendering control, use the `message` slot and render `AiContent` directly.
-
-## Development
+## 开发
 
 ```bash
 npm test
