@@ -34,7 +34,8 @@ const messages = ref<AiChatMessage[]>([
   }
 ])
 const failNext = ref(false)
-const markdownStreamDelaysMs = [160, 80, 240, 120, 320, 100]
+const markdownStreamDelaysMs = [45, 120, 70, 180, 35, 95, 260, 55]
+const markdownStreamChunkSizes = [4, 18, 7, 32, 11, 54, 6, 23, 41, 9]
 const markdownIt = new MarkdownIt({
   html: false,
   linkify: true,
@@ -66,7 +67,20 @@ const createMarkdownStreamChunks = (content: string) =>
     .split(/\n{2,}/)
     .map((block) => block.trim())
     .filter(Boolean)
-    .map((block) => `${block}\n\n`)
+    .flatMap((block, blockIndex) => {
+      const chunkedBlock: string[] = []
+      let offset = 0
+      let chunkIndex = blockIndex
+
+      while (offset < block.length) {
+        const size = markdownStreamChunkSizes[chunkIndex % markdownStreamChunkSizes.length]
+        chunkedBlock.push(block.slice(offset, offset + size))
+        offset += size
+        chunkIndex += 1
+      }
+
+      return [...chunkedBlock, '\n\n']
+    })
 
 const sendDemoMessage = async ({
   prompt,

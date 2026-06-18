@@ -80,13 +80,13 @@ describe('demo App', () => {
 
     await wrapper.find('textarea').setValue('Render the markdown example')
     await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
-    await vi.advanceTimersByTimeAsync(1700)
+    await vi.advanceTimersByTimeAsync(3800)
     await nextTick()
 
     expect(wrapper.find('.demo-message-text h1').text()).toContain('h1 Heading')
     expect(wrapper.find('img[src="https://picsum.photos/200/300"]').exists()).toBe(false)
 
-    await vi.advanceTimersByTimeAsync(16000)
+    await vi.advanceTimersByTimeAsync(60000)
     await nextTick()
 
     expect(wrapper.find('img[src="https://picsum.photos/200/300"]').exists()).toBe(true)
@@ -126,12 +126,14 @@ describe('demo App', () => {
     expect(css).toContain('.shadcn-demo__chat .ai-chat--shadcn')
   })
 
-  it('streams markdown in irregular block-sized chunks instead of fixed character slices', () => {
+  it('streams markdown with irregular token-sized chunks instead of fixed character slices', () => {
     const source = readFileSync(resolve(__dirname, 'App.vue'), 'utf8')
 
-    expect(source).toContain('const markdownStreamDelaysMs = [160, 80, 240, 120, 320, 100]')
+    expect(source).toContain('const markdownStreamDelaysMs = [45, 120, 70, 180, 35, 95, 260, 55]')
+    expect(source).toContain('const markdownStreamChunkSizes = [4, 18, 7, 32, 11, 54, 6, 23, 41, 9]')
     expect(source).toContain('createMarkdownStreamChunks')
     expect(source).toContain('split(/\\n{2,}/)')
+    expect(source).toContain('slice(offset, offset + size)')
     expect(source).not.toContain('response.match(/[\\s\\S]{1,520}/g)')
   })
 })
