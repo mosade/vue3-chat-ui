@@ -70,9 +70,10 @@ building blocks.
 
 ## Parsers
 
-Message content is parsed with the `parser` prop. The default parser is
-`plainTextParser`, which returns safe text content. Use `markdownParser` for the
-built-in minimal markdown renderer:
+Default message content is parsed with the `contentParser` prop. The default
+parser is `plainTextParser`, which returns safe text content. Use
+`markdownParser` for the built-in minimal markdown renderer. The older `parser`
+prop remains as a compatibility alias during migration:
 
 ```ts
 import { markdownParser, plainTextParser } from 'vue3-ai-chat'
@@ -81,10 +82,47 @@ import { markdownParser, plainTextParser } from 'vue3-ai-chat'
 Custom parsers implement:
 
 ```ts
-interface AiChatContentParser {
-  parse: (content: string, context: AiChatContentParserContext) => AiChatParsedContent
+interface AiContentParser {
+  parse: (content: string, context: AiContentParserContext) => AiContentParsed
 }
 ```
+
+## AiContent
+
+`AiContent` is the standalone content renderer. It accepts raw text content and
+can be used inside or outside `AiChat`:
+
+```vue
+<script setup lang="ts">
+import { AiContent, markdownParser } from 'vue3-ai-chat'
+</script>
+
+<template>
+  <AiContent
+    :content="content"
+    :parser="markdownParser"
+    :streaming="streaming"
+  />
+</template>
+```
+
+For custom message slots, prefer rendering content explicitly:
+
+```vue
+<AiChat>
+  <template #message="{ message }">
+    <AiContent
+      :content="message.content"
+      :parser="markdownParser"
+      :streaming="message.status === 'streaming'"
+    />
+  </template>
+</AiChat>
+```
+
+`AiContent` renders content by stable blocks during streaming. Completed image
+blocks keep stable keys, so appending new chunks does not remount existing image
+nodes.
 
 ## Adapter
 
@@ -121,7 +159,7 @@ final citations or references. These are intentionally separate fields.
 The package exports optional building blocks:
 
 ```ts
-import { ChatComposer, ChatMessage, ChatMessageList } from 'vue3-ai-chat'
+import { AiContent, ChatComposer, ChatMessage, ChatMessageList } from 'vue3-ai-chat'
 ```
 
 They are ordinary components for composing your own UI. They are not required by
@@ -148,6 +186,9 @@ shadcn-inspired token preset without any runtime dependency.
 - Package entry no longer imports CSS. Import `vue3-ai-chat/base.css` or `vue3-ai-chat/shadcn.css`.
 - Role-specific and nested message slots were removed. Use the single `message` slot and branch on `message.role`.
 - `AiChatTraceKind` no longer includes `source`. Process information goes in `traces`; final references go in `message.sources`.
+- `contentParser` is the preferred `AiChat` prop for the default message content renderer.
+- `parser` remains a compatibility alias during migration.
+- For full rendering control, use the `message` slot and render `AiContent` directly.
 
 ## Development
 

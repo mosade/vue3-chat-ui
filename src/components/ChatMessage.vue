@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import AiContent from './AiContent.vue'
 import type {
+  AiContentParser,
   AiChatMessage,
   AiChatMessageActions,
   AiChatMessageEditActions,
@@ -15,6 +17,7 @@ const props = defineProps<{
   message: AiChatMessage
   index: number
   parsed: AiChatParsedContent
+  contentParser?: AiContentParser
   phase?: AiChatMessagePhase
   status?: AiChatMessageStatus
   traces?: AiChatTrace[]
@@ -100,14 +103,11 @@ const tracesSummary = (traces: AiChatTrace[]) => {
       </details>
 
       <div class="ai-chat__message-content">
-        <span
-          v-if="parsed.type === 'html'"
-          class="ai-chat__content-html"
-          v-html="parsed.content"
+        <AiContent
+          :content="message.content"
+          :parser="contentParser"
+          :streaming="messageStatus === 'streaming'"
         />
-        <template v-else>
-          {{ parsed.content }}
-        </template>
         <span v-if="messageStatus === 'pending'" class="ai-chat__sr-only" aria-live="polite">
           Response pending
         </span>

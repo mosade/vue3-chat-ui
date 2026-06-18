@@ -100,10 +100,29 @@
 
 .ai-chat__message-content {
   padding: 10px 12px;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
   border-radius: var(--ai-chat-radius);
   line-height: 1.55;
+}
+
+.ai-content {
+  display: grid;
+  gap: 8px;
+  white-space: pre-wrap;
+}
+
+.ai-content__block {
+  min-width: 0;
+}
+
+.ai-content__html {
+  display: contents;
+}
+
+.ai-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: calc(var(--ai-chat-radius) - 2px);
 }
 
 .ai-chat__message--user .ai-chat__message-content {

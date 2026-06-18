@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AiChat, markdownParser, type AiChatMessage, type AiChatSendContext } from '../src'
+import {
+  AiChat,
+  AiContent,
+  markdownParser,
+  type AiChatMessage,
+  type AiChatSendContext,
+  type AiContentParser
+} from '../src'
 import ShadcnDemo from './ShadcnDemo.vue'
 
 type DemoVariant = 'default' | 'shadcn'
@@ -13,7 +20,7 @@ const messages = ref<AiChatMessage[]>([
     id: 'welcome',
     role: 'assistant',
     content:
-      '**Markdown rendering** is enabled through the parser prop. Try copy, edit, retry, regenerate, stop, and clear actions from slots.',
+      '**AiContent rendering** is enabled through the contentParser prop. Completed blocks keep stable keys while streaming, including image blocks like ![Vue](https://vuejs.org/logo.svg).',
     status: 'done',
     sources: [
       {
@@ -26,6 +33,24 @@ const messages = ref<AiChatMessage[]>([
   }
 ])
 const failNext = ref(false)
+
+const demoContentParser: AiContentParser = {
+  parse: (content, context) => {
+    const parsed = markdownParser.parse(content, context)
+
+    if (parsed.type !== 'html') {
+      return parsed
+    }
+
+    return {
+      type: 'html',
+      content: parsed.content.replace(
+        /!\[([^\]\n]*)\]\((https?:\/\/[^)\s]+)\)/g,
+        '<img alt="$1" src="$2" loading="lazy">'
+      )
+    }
+  }
+}
 
 const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -85,8 +110,9 @@ const sendDemoMessage = async ({
   setPhase('answering')
   const chunks = [
     `Received: "${prompt}". `,
-    'The root component owns state and dispatches five top-level slots, ',
-    'while parser and preset choices stay replaceable.'
+    'The root component owns state and dispatches five top-level slots.\n\n',
+    'AiContent parses stable blocks once, keeps the live tail isolated, ',
+    'and can render completed image syntax without remounting earlier media.'
   ]
 
   for (const chunk of chunks) {
@@ -169,7 +195,7 @@ const messageCount = computed(() => messages.value.length)
           v-model:messages="messages"
           v-model:input="composerInput"
           :adapter="{ send: sendDemoMessage }"
-          :parser="markdownParser"
+          :content-parser="demoContentParser"
           conversation-id="default-demo"
           :on-persist="recordPersist"
           auto-focus
@@ -212,12 +238,12 @@ const messageCount = computed(() => messages.value.length)
                   <strong>{{ context.message.role === 'user' ? 'You' : 'AiChat' }}</strong>
                   <span>{{ context.phase ?? context.status ?? 'done' }}</span>
                 </div>
-                <div
-                  v-if="context.parsed.type === 'html'"
+                <AiContent
                   class="demo-message-text"
-                  v-html="context.parsed.content"
+                  :content="context.message.content"
+                  :parser="demoContentParser"
+                  :streaming="context.status === 'streaming'"
                 />
-                <p v-else class="demo-message-text">{{ context.parsed.content }}</p>
 
                 <details v-if="context.traces.length" class="demo-traces">
                   <summary>Process {{ context.traces.length }}</summary>
@@ -330,7 +356,7 @@ const messageCount = computed(() => messages.value.length)
           </template>
 
           <template #footer>
-            <span>Markdown rendering, sources, traces, persistence: {{ persistEvents[0] ?? 'ready' }}</span>
+            <span>AiContent blocks, sources, traces, persistence: {{ persistEvents[0] ?? 'ready' }}</span>
           </template>
         </AiChat>
       </section>

@@ -5,8 +5,8 @@ import ChatMessage from './ChatMessage.vue'
 import { useAiChat } from '../composables/useAiChat'
 import { plainTextParser } from '../parsers'
 import type {
+  AiContentParser,
   AiChatAdapter,
-  AiChatContentParser,
   AiChatError,
   AiChatInputSlotContext,
   AiChatMessage,
@@ -61,8 +61,9 @@ export default defineComponent({
       type: Boolean,
       default: true
     },
+    contentParser: Object as PropType<AiContentParser | undefined>,
     parser: {
-      type: Object as PropType<AiChatContentParser>,
+      type: Object as PropType<AiContentParser>,
       default: () => plainTextParser
     }
   },
@@ -90,6 +91,7 @@ export default defineComponent({
     const isBusy = computed(() => props.loading || chat.isActive.value)
     const isActive = computed(() => chat.isActive.value)
     const isDisabled = computed(() => props.disabled)
+    const resolvedContentParser = computed(() => props.contentParser ?? props.parser ?? plainTextParser)
 
     const internalDraft = ref(props.defaultInput)
     const isInputControlled = computed(() => props.input !== undefined)
@@ -233,7 +235,13 @@ export default defineComponent({
     const getMessageContext = (message: AiChatMessage, index: number): AiChatMessageSlotContext => ({
       message,
       index,
-      parsed: props.parser.parse(message.content, { message }),
+      parsed: resolvedContentParser.value.parse(message.content, {
+        message,
+        streaming: message.status === 'streaming',
+        blockId: message.id,
+        stable: message.status !== 'streaming',
+        kind: 'paragraph'
+      }),
       phase: message.phase,
       status: message.status,
       traces: message.traces ?? [],
@@ -259,7 +267,10 @@ export default defineComponent({
     })
 
     const renderFallbackMessage = (context: AiChatMessageSlotContext) =>
-      h(ChatMessage, context)
+      h(ChatMessage, {
+        ...context,
+        contentParser: resolvedContentParser.value
+      })
 
     const renderMessage = (message: AiChatMessage, index: number): VNodeChild => {
       const context = getMessageContext(message, index)

@@ -74,7 +74,8 @@ describe('demo App', () => {
     const wrapper = mount(App)
 
     expect(wrapper.text()).toContain('Clean white demo')
-    expect(wrapper.text()).toContain('Markdown rendering')
+    expect(wrapper.text()).toContain('AiContent rendering')
+    expect(wrapper.find('.demo-message-text.ai-content').exists()).toBe(true)
     expect(wrapper.find('.demo-sources').exists()).toBe(true)
     expect(wrapper.text()).toContain('Vue API Reference')
     expect(wrapper.text()).toContain('persistence')
@@ -92,6 +93,7 @@ describe('demo App', () => {
     expect(css).toContain('.google-demo')
     expect(css).toContain('.google-hero')
     expect(css).toContain('.google-input')
+    expect(css).toContain('.demo-message-text.ai-content')
     expect(css).toContain('.demo-message {')
     expect(css).toContain('.demo-message--user')
     expect(css).toContain('.demo-message__body')

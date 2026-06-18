@@ -1,4 +1,9 @@
 export type {
+  AiContentBlock,
+  AiContentBlockKind,
+  AiContentParsed,
+  AiContentParser,
+  AiContentParserContext,
   AiChatAdapter,
   AiChatContentParser,
   AiChatContentParserContext,
@@ -25,6 +30,7 @@ export type {
 export { useAiChat } from './composables/useAiChat'
 export type { UseAiChatOptions, UseAiChatReturn } from './composables/useAiChat'
 export { markdownParser, plainTextParser } from './parsers'
+export { default as AiContent } from './components/AiContent.vue'
 export { default as AiChat } from './components/AiChat.vue'
 export { default as ChatComposer } from './components/ChatComposer.vue'
 export { default as ChatMessage } from './components/ChatMessage.vue'

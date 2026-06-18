@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import AiChat from './AiChat.vue'
+import AiContent from './AiContent.vue'
 import type { AiChatMessage } from '../types'
 
 const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -120,6 +121,63 @@ describe('AiChat', () => {
     })
 
     expect(wrapper.find('.parsed strong').text()).toBe('Parsed')
+  })
+
+  it('passes contentParser to the default message renderer', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [
+          { id: 'a1', role: 'assistant', content: 'Hello', status: 'done' }
+        ],
+        contentParser: {
+          parse: (content: string) => ({
+            type: 'html',
+            content: `<strong>${content}</strong>`
+          })
+        }
+      }
+    })
+
+    expect(wrapper.find('.ai-content strong').text()).toBe('Hello')
+  })
+
+  it('keeps parser as a legacy alias for contentParser', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [
+          { id: 'a1', role: 'assistant', content: 'Legacy', status: 'done' }
+        ],
+        parser: {
+          parse: (content: string) => ({
+            type: 'html',
+            content: `<em>${content}</em>`
+          })
+        }
+      }
+    })
+
+    expect(wrapper.find('.ai-content em').text()).toBe('Legacy')
+  })
+
+  it('allows custom message slots to use AiContent directly', () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        defaultMessages: [
+          { id: 'a1', role: 'assistant', content: 'Slot content', status: 'streaming' }
+        ]
+      },
+      slots: {
+        message:
+          `<template #message="{ message }"><AiContent class="slot-content" :content="message.content" :streaming="message.status === 'streaming'" /></template>`
+      },
+      global: {
+        components: {
+          AiContent
+        }
+      }
+    })
+
+    expect(wrapper.find('.slot-content').text()).toContain('Slot content')
   })
 
   it('exposes edit state and edit actions through the message slot', async () => {

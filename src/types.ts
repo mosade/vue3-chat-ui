@@ -14,7 +14,9 @@ export type AiChatMessagePhase =
   | 'error'
   | 'stopped'
 
-export type AiChatParsedContent =
+export type AiContentBlockKind = 'paragraph' | 'code' | 'image' | 'html'
+
+export type AiContentParsed =
   | {
       type: 'text'
       content: string
@@ -24,13 +26,33 @@ export type AiChatParsedContent =
       content: string
     }
 
-export interface AiChatContentParserContext {
+export interface AiContentParserContext {
+  streaming: boolean
+  blockId?: string
+  stable?: boolean
+  kind?: AiContentBlockKind
+  message?: AiChatMessage
+}
+
+export interface AiContentParser {
+  parse: (content: string, context: AiContentParserContext) => AiContentParsed
+}
+
+export interface AiContentBlock {
+  id: string
+  raw: string
+  renderContent: string
+  stable: boolean
+  kind: AiContentBlockKind
+}
+
+export type AiChatParsedContent = AiContentParsed
+
+export type AiChatContentParserContext = AiContentParserContext & {
   message: AiChatMessage
 }
 
-export interface AiChatContentParser {
-  parse: (content: string, context: AiChatContentParserContext) => AiChatParsedContent
-}
+export type AiChatContentParser = AiContentParser
 
 export type AiChatTraceKind = 'reasoning' | 'search' | 'tool'
 

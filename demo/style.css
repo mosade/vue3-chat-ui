@@ -236,6 +236,11 @@ input {
   font-weight: 600;
 }
 
+.demo-message-text.ai-content {
+  display: grid;
+  gap: 10px;
+}
+
 .demo-message-text {
   margin: 0;
   padding: 12px 14px;
@@ -252,6 +257,20 @@ input {
   color: #ffffff;
   background: #1a73e8;
   border-color: #1a73e8;
+}
+
+.demo-message-text .ai-content__block {
+  min-width: 0;
+}
+
+.demo-message-text img {
+  display: block;
+  max-width: min(180px, 100%);
+  height: auto;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
 }
 
 .demo-message--error .demo-message-text {

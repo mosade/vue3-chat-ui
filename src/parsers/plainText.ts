@@ -1,6 +1,6 @@
-import type { AiChatContentParser } from '../types'
+import type { AiContentParser } from '../types'
 
-export const plainTextParser: AiChatContentParser = {
+export const plainTextParser: AiContentParser = {
   parse: (content) => ({
     type: 'text',
     content

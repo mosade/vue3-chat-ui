@@ -1,4 +1,4 @@
-import type { AiChatContentParser } from '../types'
+import type { AiContentParser } from '../types'
 
 const escapeHtml = (content: string) =>
   content
@@ -12,7 +12,7 @@ const escapeAttribute = (content: string) => escapeHtml(content).replace(/`/g, '
 
 const isSafeUrl = (url: string) => /^(https?:|mailto:)/i.test(url)
 
-export const markdownParser: AiChatContentParser = {
+export const markdownParser: AiContentParser = {
   parse: (content) => {
     const escaped = escapeHtml(content)
 
