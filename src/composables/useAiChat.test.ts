@@ -72,6 +72,88 @@ describe('useAiChat', () => {
     })
   })
 
+  it('exposes assistant message phases, process traces, and final sources separately', async () => {
+    const phases: string[] = []
+    const chat = useAiChat({
+      onSend: async ({ setPhase, appendTrace, updateTrace, update, append }) => {
+        setPhase('connecting')
+        phases.push('connecting')
+
+        const searchId = appendTrace({
+          kind: 'search',
+          title: '搜索资料',
+          status: 'pending'
+        })
+        setPhase('searching')
+        phases.push('searching')
+        updateTrace(searchId, { status: 'done' })
+
+        const reasoningId = appendTrace({
+          kind: 'reasoning',
+          title: '思考中',
+          status: 'pending'
+        })
+        setPhase('reasoning')
+        phases.push('reasoning')
+        updateTrace(reasoningId, { status: 'done' })
+
+        setPhase('answering')
+        phases.push('answering')
+        update({
+          sources: [
+            {
+              id: 'vue-docs',
+              title: 'Vue Documentation',
+              url: 'https://vuejs.org',
+              snippet: 'Vue official docs.'
+            }
+          ]
+        })
+        append('最终回答')
+      }
+    })
+
+    await chat.send('帮我搜索并总结')
+
+    const assistant = chat.messages.value.at(-1)
+
+    expect(phases).toEqual(['connecting', 'searching', 'reasoning', 'answering'])
+    expect(assistant).toMatchObject({
+      role: 'assistant',
+      phase: 'done',
+      status: 'done',
+      content: '最终回答'
+    })
+    expect(assistant?.traces).toMatchObject([
+      { kind: 'search', title: '搜索资料', status: 'done' },
+      { kind: 'reasoning', title: '思考中', status: 'done' }
+    ])
+    expect(assistant?.sources).toMatchObject([
+      {
+        id: 'vue-docs',
+        title: 'Vue Documentation',
+        url: 'https://vuejs.org'
+      }
+    ])
+  })
+
+  it('sets stopped and error phases for aborted or failed requests', async () => {
+    const failed = useAiChat({
+      onSend: async ({ setPhase }) => {
+        setPhase('connecting')
+        throw new Error('Network failed')
+      }
+    })
+
+    await failed.send('fail')
+
+    expect(failed.messages.value.at(-1)).toMatchObject({
+      status: 'error',
+      phase: 'error',
+      content: 'Network failed'
+    })
+  })
+
   it('uses onSend before adapter when both are provided', async () => {
     const adapter = { send: vi.fn(async () => 'adapter') }
     const onSend = vi.fn(async () => 'callback')

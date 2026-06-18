@@ -3,6 +3,7 @@ import type {
   AiChatAdapter,
   AiChatError,
   AiChatMessage,
+  AiChatMessagePhase,
   AiChatRegeneratePayload,
   AiChatSendContext,
   AiChatTrace
@@ -123,13 +124,18 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     )
   }
 
+  const setMessagePhase = (id: string, phase: AiChatMessagePhase) => {
+    updateMessage(id, { phase })
+  }
+
   const appendToMessage = (id: string, chunk: string) => {
     messages.value = messages.value.map((message) =>
       message.id === id
         ? {
             ...message,
             content: `${message.content}${chunk}`,
-            status: 'streaming'
+            status: 'streaming',
+            phase: 'answering'
           }
         : message
     )
@@ -202,7 +208,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     }
 
     request.controller.abort()
-    updateMessage(request.assistantId, { status: 'stopped' })
+    updateMessage(request.assistantId, { status: 'stopped', phase: 'stopped' })
     activeRequest.value = null
     persist('stop')
   }
@@ -218,25 +224,27 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
     }
 
     if (!sendHandler) {
-      updateMessage(assistantId, { status: 'done' })
+      updateMessage(assistantId, { status: 'done', phase: 'done' })
       activeRequest.value = null
       return
     }
 
     try {
+      updateMessage(assistantId, { phase: 'connecting' })
       const context: AiChatSendContext = {
         prompt,
         messages: messages.value,
         signal: controller.signal,
         append: (chunk) => appendToMessage(assistantId, chunk),
         update: (message) => updateMessage(assistantId, message),
+        setPhase: (phase) => setMessagePhase(assistantId, phase),
         appendTrace: (trace) => appendTraceToMessage(assistantId, trace),
         updateTrace: (id, trace) => updateTraceInMessage(assistantId, id, trace)
       }
       const result = await sendHandler(context)
 
       if (controller.signal.aborted) {
-        updateMessage(assistantId, { status: 'stopped' })
+        updateMessage(assistantId, { status: 'stopped', phase: 'stopped' })
         return
       }
 
@@ -249,10 +257,10 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
         }
       }
 
-      updateMessage(assistantId, { status: 'done' })
+      updateMessage(assistantId, { status: 'done', phase: 'done' })
     } catch (cause) {
       if (controller.signal.aborted || isAbortError(cause)) {
-        updateMessage(assistantId, { status: 'stopped' })
+        updateMessage(assistantId, { status: 'stopped', phase: 'stopped' })
         return
       }
 
@@ -260,7 +268,8 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
       error.value = normalized
       updateMessage(assistantId, {
         content: normalized.message,
-        status: 'error'
+        status: 'error',
+        phase: 'error'
       })
       options.onError?.(normalized, { prompt, messages: messages.value })
     } finally {
@@ -288,6 +297,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
       role: 'assistant',
       content: '',
       status: 'pending',
+      phase: 'queued',
       createdAt: Date.now()
     }
 
@@ -320,6 +330,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
             ...message,
             content: '',
             status: 'pending',
+            phase: 'queued',
             traces: []
           }
         : message
@@ -361,6 +372,7 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
             ...message,
             content: '',
             status: 'pending',
+            phase: 'queued',
             traces: []
           }
         : message
@@ -393,6 +405,8 @@ export function useAiChat(options: UseAiChatOptions = {}): UseAiChatReturn {
       role: 'assistant',
       content: '',
       status: 'pending',
+      phase: 'queued',
+      traces: [],
       createdAt: Date.now()
     }
 

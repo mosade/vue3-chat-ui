@@ -1,324 +1,158 @@
 # vue3-ai-chat
 
-可复用的 Vue 3 AI 聊天组件和无头 composable。这个包提供默认聊天 UI、纯 CSS 样式、TypeScript 类型，以及与具体模型服务解耦的发送接口，方便应用接入任意后端或模型提供商。
+Headless Vue 3 AI chat state and slot orchestration. The package provides a
+provider-neutral `useAiChat` state machine, a headerless `AiChat` root component,
+replaceable content parsers, optional building blocks, and explicit CSS presets.
 
-## 功能特性
-
-- Vue 3 + TypeScript 组件包。
-- 不依赖任何 UI 组件库。
-- 提供与模型服务解耦的 `adapter` 和 `sendHandler` 集成方式。
-- 支持受控和非受控消息状态。
-- 支持 assistant 流式输出、停止和重新生成。
-- 支持公开过程 traces，用于展示模型或后端明确提供的思考摘要、搜索进度、工具过程和来源。
-- 通过 slots 自定义渲染。
-- 使用纯 CSS 变量和稳定的 `ai-chat` class 名称进行主题定制。
-- 提供无头 `useAiChat` composable，适合构建完全自定义布局。
-
-## 安装
+## Install
 
 ```bash
-npm install vue3-ai-chat
+npm install vue3-ai-chat vue
 ```
 
-Vue 是 peer dependency：
-
-```bash
-npm install vue
-```
-
-## 基础用法
+## Basic Usage
 
 ```vue
 <script setup lang="ts">
-import { AiChat, type AiChatAdapter } from 'vue3-ai-chat'
-import 'vue3-ai-chat/style.css'
+import { AiChat, markdownParser, type AiChatAdapter } from 'vue3-ai-chat'
+import 'vue3-ai-chat/base.css'
 
 const adapter: AiChatAdapter = {
-  async send({ prompt, append, signal }) {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({ prompt }),
-      signal
-    })
-
-    if (!response.ok) {
-      throw new Error('Chat request failed')
-    }
-
-    append(await response.text())
+  async send({ append }) {
+    append('Hello')
   }
 }
 </script>
 
 <template>
-  <AiChat :adapter="adapter" placeholder="Ask anything..." />
+  <AiChat :adapter="adapter" :parser="markdownParser">
+    <template #header="{ messages, actions }">
+      <button type="button" @click="actions.clear()">Clear {{ messages.length }}</button>
+    </template>
+
+    <template #message="{ message, parsed, actions }">
+      <div v-if="message.role === 'user'" class="user-message">
+        {{ message.content }}
+      </div>
+      <div v-else-if="parsed.type === 'html'" class="assistant-message" v-html="parsed.content" />
+      <p v-else class="assistant-message">{{ parsed.content }}</p>
+
+      <button v-if="message.content" type="button" @click="actions.copy()">Copy</button>
+
+      <ol v-if="message.sources?.length" class="message-sources">
+        <li v-for="source in message.sources" :key="source.id">
+          <a v-if="source.url" :href="source.url" target="_blank" rel="noreferrer">
+            {{ source.title }}
+          </a>
+          <span v-else>{{ source.title }}</span>
+        </li>
+      </ol>
+    </template>
+  </AiChat>
 </template>
 ```
 
-## 流式 Adapter
+## Core API
 
-`adapter.send` 会收到一个 `AiChatSendContext`。当后端或模型返回片段时，调用 `append(chunk)` 追加内容。请使用 `signal` 支持内置停止操作。
+`AiChat` exposes only five top-level slots:
+
+| Slot | Context |
+| --- | --- |
+| `header` | `AiChatRootSlotContext` |
+| `empty` | `AiChatRootSlotContext` |
+| `message` | `AiChatMessageSlotContext` |
+| `input` | `AiChatInputSlotContext` |
+| `footer` | `AiChatRootSlotContext` |
+
+The root component owns message state, input draft state, edit state, scroll
+state, and action wiring. Rendering is supplied by slots or by the exported
+building blocks.
+
+## Parsers
+
+Message content is parsed with the `parser` prop. The default parser is
+`plainTextParser`, which returns safe text content. Use `markdownParser` for the
+built-in minimal markdown renderer:
 
 ```ts
-import type { AiChatAdapter } from 'vue3-ai-chat'
+import { markdownParser, plainTextParser } from 'vue3-ai-chat'
+```
 
-export const adapter: AiChatAdapter = {
-  async send({ prompt, append, signal }) {
-    const chunks = [`Question: ${prompt}\n`, 'Thinking...\n', 'Done.']
+Custom parsers implement:
 
-    for (const chunk of chunks) {
-      if (signal.aborted) return
-      await new Promise((resolve) => setTimeout(resolve, 200))
-      append(chunk)
-    }
-  }
+```ts
+interface AiChatContentParser {
+  parse: (content: string, context: AiChatContentParserContext) => AiChatParsedContent
 }
 ```
 
-如果 `send` 返回字符串，组件会把它写入 assistant 消息。如果已经通过 `append` 收到过片段，返回的字符串会追加到已有内容之后。
+## Adapter
 
-## 公开过程 Traces
-
-有些模型服务或应用后端会返回可公开的过程事件，例如思考摘要、搜索进度、工具调用状态或来源信息。这些不是隐藏 chain-of-thought。只应展示后端明确标记为可向用户展示的 traces。
-
-在 `AiChatSendContext` 中使用 `appendTrace` 和 `updateTrace`：
+`adapter.send` receives an `AiChatSendContext`:
 
 ```ts
-import type { AiChatAdapter } from 'vue3-ai-chat'
-
-export const adapter: AiChatAdapter = {
-  async send({ append, appendTrace, updateTrace, signal }) {
-    const searchId = appendTrace({
+const adapter: AiChatAdapter = {
+  async send({ prompt, append, update, setPhase, appendTrace, updateTrace, signal }) {
+    setPhase('searching')
+    const traceId = appendTrace({
       kind: 'search',
-      title: 'Searching data',
-      content: 'Checking local documentation',
-      status: 'pending',
-      items: ['README.md', 'src/types.ts']
+      title: 'Searching docs',
+      status: 'pending'
     })
 
     await fetch('/api/search', { signal })
+    updateTrace(traceId, { status: 'done' })
 
-    updateTrace(searchId, {
-      content: 'Found the component API and slot list',
-      status: 'done'
+    setPhase('answering')
+    append(`Answer for ${prompt}`)
+    update({
+      sources: [{ id: 'docs', title: 'Docs', url: 'https://example.com' }]
     })
-
-    append('The answer can now cite the inspected data.')
   }
 }
 ```
 
-支持的 trace 类型是 `reasoning`、`search`、`tool` 和 `source`。
+`phase` expresses the main assistant lifecycle. `traces` express public process
+events such as reasoning summaries, search, or tool calls. `sources` express
+final citations or references. These are intentionally separate fields.
 
-默认 UI 会把 traces 展示在消息正文上方，并用 `<details>` 折叠：
+## Building Blocks
 
-- 全部完成时默认折叠，summary 为 `Process`。
-- 有 `pending` trace 时默认展开，summary 为 `Working...`。
-- 有 `error` trace 时默认展开，summary 为 `Process needs attention`。
-
-## 受控消息
-
-当父组件需要负责持久化、同步或会话状态时，使用 `v-model:messages`。
-
-```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-import { AiChat, type AiChatMessage } from 'vue3-ai-chat'
-
-const messages = ref<AiChatMessage[]>([])
-</script>
-
-<template>
-  <AiChat v-model:messages="messages" :adapter="adapter" />
-</template>
-```
-
-如果只需要非受控初始状态，可以使用 `defaultMessages`：
-
-```vue
-<AiChat :default-messages="[{ id: 'm1', role: 'system', content: 'Welcome' }]" />
-```
-
-## Props
-
-| Prop | 类型 | 说明 |
-| --- | --- | --- |
-| `messages` | `AiChatMessage[]` | 受控消息列表。 |
-| `defaultMessages` | `AiChatMessage[]` | 非受控模式下的初始消息。 |
-| `adapter` | `AiChatAdapter` | 与模型服务解耦的发送 adapter。 |
-| `sendHandler` | `(context: AiChatSendContext) => Promise<string \| void>` | 直接发送回调。与 `adapter` 同时存在时优先使用 `sendHandler`。 |
-| `loading` | `boolean` | 由外部标记组件忙碌中。 |
-| `disabled` | `boolean` | 禁用聊天控件。 |
-| `placeholder` | `string` | 输入框 placeholder。 |
-| `autoFocus` | `boolean` | 组件挂载后自动聚焦输入框。 |
-| `autoScroll` | `boolean` | 新消息或过程更新时自动滚动。默认值为 `true`。 |
-| `markdown` | `boolean \| function` | 预留渲染 hook；默认渲染为安全纯文本。 |
-
-## Events
-
-| Event | Payload |
-| --- | --- |
-| `update:messages` | `AiChatMessage[]` |
-| `send` | `prompt: string` |
-| `stop` | none |
-| `regenerate` | `AiChatRegeneratePayload` |
-| `clear` | none |
-| `error` | `AiChatError`, `{ prompt, messages }` |
-
-使用 `sendHandler` 或 `adapter` 接入模型服务，把 `@send` 只作为发送事件监听。
-
-## Slots
-
-| Slot | 作用域 |
-| --- | --- |
-| `header` | `{ messages, active }` |
-| `empty` | none |
-| `avatar` | `{ message, index }` |
-| `message` | `{ message, index, status }` |
-| `message-content` | `{ message, index, status }` |
-| `message-actions` | `{ message, index, status, canRegenerate, actions }` |
-| `message-traces` | `{ message, index, traces }` |
-| `message-trace` | `{ trace, message, index }` |
-| `composer-prefix` | none |
-| `composer-actions` | none |
-| `footer` | `{ messages, active }` |
-
-示例：
-
-```vue
-<AiChat :adapter="adapter">
-  <template #avatar="{ message }">
-    <span>{{ message.role === 'user' ? 'You' : 'AI' }}</span>
-  </template>
-
-  <template #message-content="{ message }">
-    <p>{{ message.content }}</p>
-  </template>
-
-  <template #message-trace="{ trace }">
-    <span>{{ trace.kind }}: {{ trace.title }}</span>
-  </template>
-</AiChat>
-```
-
-## 无头 Composable
-
-当你只需要状态机而不使用默认 UI 时，可以使用 `useAiChat`。
+The package exports optional building blocks:
 
 ```ts
-import { useAiChat } from 'vue3-ai-chat'
-
-const chat = useAiChat({
-  adapter,
-  onError(error) {
-    console.error(error.message)
-  }
-})
-
-await chat.send('Hello')
-chat.stop()
-await chat.regenerate(chat.messages.value[1].id)
-chat.clear()
+import { ChatComposer, ChatMessage, ChatMessageList } from 'vue3-ai-chat'
 ```
 
-`useAiChat` 返回：
+They are ordinary components for composing your own UI. They are not required by
+the `AiChat` slot protocol.
 
-- `messages`
-- `isActive`
-- `error`
-- `send(prompt)`
-- `stop()`
-- `regenerate(messageId)`
-- `canRegenerate(message)`
-- `clear()`
-- `setMessages(messages)`
+## CSS Presets
 
-## 类型
+The package entry does not import CSS automatically. Import one or both presets
+explicitly:
 
 ```ts
-export type AiChatRole = 'user' | 'assistant' | 'system' | 'error'
-export type AiChatMessageStatus = 'pending' | 'streaming' | 'done' | 'error'
-export type AiChatTraceKind = 'reasoning' | 'search' | 'tool' | 'source'
-export type AiChatTraceStatus = 'pending' | 'done' | 'error'
-
-export interface AiChatTrace {
-  id: string
-  kind: AiChatTraceKind
-  title: string
-  content?: string
-  status?: AiChatTraceStatus
-  items?: string[]
-  createdAt?: number
-  meta?: Record<string, unknown>
-}
-
-export interface AiChatMessage {
-  id: string
-  role: AiChatRole
-  content: string
-  status?: AiChatMessageStatus
-  traces?: AiChatTrace[]
-  createdAt?: number
-  meta?: Record<string, unknown>
-}
-
-export interface AiChatRegeneratePayload {
-  message: AiChatMessage
-  promptMessage: AiChatMessage
-  messages: AiChatMessage[]
-}
+import 'vue3-ai-chat/base.css'
+import 'vue3-ai-chat/shadcn.css'
 ```
 
-## 主题
+`base.css` defines stable `.ai-chat` class styling. `shadcn.css` adds a
+shadcn-inspired token preset without any runtime dependency.
 
-引入一次样式文件：
+## Breaking Changes
 
-```ts
-import 'vue3-ai-chat/style.css'
-```
+- Removed the `markdown` prop. Use `parser`, `markdownParser`, or a custom parser.
+- Removed the fixed toolbar. Use `header` or another slot and call `actions.clear()`.
+- Removed `placeholder` from `AiChat`; placeholder belongs to `ChatComposer` or a custom `input` slot.
+- Package entry no longer imports CSS. Import `vue3-ai-chat/base.css` or `vue3-ai-chat/shadcn.css`.
+- Role-specific and nested message slots were removed. Use the single `message` slot and branch on `message.role`.
+- `AiChatTraceKind` no longer includes `source`. Process information goes in `traces`; final references go in `message.sources`.
 
-在任意父级元素上覆盖 CSS 变量：
-
-```css
-.my-chat-theme {
-  --ai-chat-bg: #ffffff;
-  --ai-chat-fg: #172026;
-  --ai-chat-muted-fg: #667085;
-  --ai-chat-border: #cfd8dc;
-  --ai-chat-user-bg: #0f766e;
-  --ai-chat-user-fg: #ffffff;
-  --ai-chat-assistant-bg: #f4f7f9;
-  --ai-chat-assistant-fg: #172026;
-  --ai-chat-error-bg: #fee2e2;
-  --ai-chat-error-fg: #991b1b;
-  --ai-chat-radius: 8px;
-  --ai-chat-gap: 12px;
-  --ai-chat-font-size: 14px;
-  --ai-chat-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-}
-```
-
-稳定 class 名称都使用 `ai-chat` 前缀，例如 `.ai-chat`、`.ai-chat__messages`、`.ai-chat__message--user` 和 `.ai-chat__composer`。
-
-## Demo
-
-运行本地 demo：
-
-```bash
-npm install
-npm run dev
-```
-
-打开 `http://localhost:5173/`。
-
-demo 展示了受控消息、mock streaming adapter、停止、重试、清空、自定义 slots、公开过程 traces、运行时主题切换，以及一套 shadcn 风格变体。
-
-## 开发
+## Development
 
 ```bash
 npm test
 npm run typecheck
 npm run build
 ```
-
-构建会把库产物、CSS 和 TypeScript declaration 文件输出到 `dist/`。

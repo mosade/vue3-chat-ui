@@ -7,7 +7,7 @@ const shadcnMessages = ref<AiChatMessage[]>([
     id: 'shadcn-welcome',
     role: 'assistant',
     content:
-      'This variant keeps the same AiChat component and restyles it with slots plus CSS variables for a shadcn-inspired product surface.',
+      'This variant keeps the same AiChat state orchestration and restyles it with slots plus the shadcn CSS preset.',
     status: 'done'
   },
   {
@@ -20,12 +20,11 @@ const shadcnMessages = ref<AiChatMessage[]>([
     id: 'shadcn-assistant',
     role: 'assistant',
     content:
-      'The message list, composer, toolbar, and state machine are unchanged. This view customizes message actions for copy, edit, retry, and regenerate.',
+      'The root slots own header, messages, input, and footer. Traces describe process; sources describe final references.',
     status: 'done'
   }
 ])
 const shadcnFailNext = ref(false)
-
 const shadcnMessageCount = computed(() => shadcnMessages.value.length)
 
 const wait = (ms: number, signal: AbortSignal) =>
@@ -46,6 +45,7 @@ const sendShadcnMessage = async ({
   append,
   appendTrace,
   updateTrace,
+  setPhase,
   signal
 }: AiChatSendContext) => {
   if (shadcnFailNext.value) {
@@ -54,6 +54,7 @@ const sendShadcnMessage = async ({
     throw new Error('The shadcn-style adapter returned a demo error.')
   }
 
+  setPhase('tool_calling')
   const traceId = appendTrace({
     kind: 'tool',
     title: 'Reading workspace',
@@ -67,14 +68,7 @@ const sendShadcnMessage = async ({
     status: 'done'
   })
 
-  appendTrace({
-    kind: 'source',
-    title: 'Source notes',
-    content: 'This is a mock trace supplied by adapter code, not hidden reasoning.',
-    status: 'done',
-    items: ['AiChatSendContext.appendTrace', 'AiChatSendContext.updateTrace']
-  })
-
+  setPhase('answering')
   const chunks = [
     `Prompt received: ${prompt}. `,
     'This view uses a restrained neutral palette, thin borders, compact spacing, ',
@@ -92,11 +86,11 @@ const sendShadcnMessage = async ({
   <section class="shadcn-demo">
     <header class="shadcn-demo__topbar">
       <div>
-        <p class="shadcn-demo__eyebrow">vue3-ai-chat slots + variables</p>
+        <p class="shadcn-demo__eyebrow">vue3-ai-chat slots + presets</p>
         <h1>shadcn-style workspace</h1>
         <p>
           A second demo surface using the same component API with custom
-          message action controls for copy, edit, retry, and regenerate.
+          message and action rendering.
         </p>
       </div>
 
@@ -114,8 +108,7 @@ const sendShadcnMessage = async ({
           <span class="shadcn-demo__label">Conversation</span>
           <strong>Component styling audit</strong>
           <p>
-            This isolated demo component owns its state, adapter, and slot-rendered
-            action bar while using the shared AiChat implementation.
+            This isolated demo owns its state, adapter, and slot-rendered action bar.
           </p>
         </div>
 
@@ -138,132 +131,149 @@ const sendShadcnMessage = async ({
       <section class="shadcn-demo__chat">
         <AiChat
           v-model:messages="shadcnMessages"
+          class="ai-chat--shadcn"
           :adapter="{ send: sendShadcnMessage }"
-          placeholder="Message the shadcn-style assistant..."
         >
-          <template #header="{ active }">
+          <template #header="{ active, actions }">
             <div class="shadcn-chat-header">
               <div>
                 <strong>Design System Assistant</strong>
                 <span>{{ active ? 'Streaming response' : 'Ready for prompt' }}</span>
               </div>
-              <span class="shadcn-demo__badge" :data-active="active">
-                {{ active ? 'Live' : 'Idle' }}
-              </span>
+              <div class="shadcn-demo__actions">
+                <span class="shadcn-demo__badge" :data-active="active">
+                  {{ active ? 'Live' : 'Idle' }}
+                </span>
+                <button class="shadcn-demo__button shadcn-demo__button--ghost" type="button" @click="actions.clear()">
+                  Clear
+                </button>
+              </div>
             </div>
           </template>
 
-          <template #empty>
+          <template #empty="{ actions }">
             <div class="shadcn-empty">
               <strong>No messages</strong>
-              <span>Start a conversation to test the shadcn-style skin.</span>
-            </div>
-          </template>
-
-          <template #avatar="{ message }">
-            <span class="shadcn-avatar">{{ message.role === 'user' ? 'ME' : 'AI' }}</span>
-          </template>
-
-          <template #message-content="{ message }">
-            <p class="shadcn-message-copy">{{ message.content || 'Thinking...' }}</p>
-          </template>
-
-          <template #message-actions="{ message, canRegenerate, canRetry, actions }">
-            <div class="shadcn-message-actions">
-              <span class="shadcn-message-status">{{ message.status ?? 'done' }}</span>
-              <button
-                v-if="message.content"
-                type="button"
-                class="shadcn-message-action"
-                data-shadcn-action="copy"
-                @click="actions.copy()"
-              >
-                Copy
-              </button>
-              <button
-                v-if="message.role === 'user'"
-                type="button"
-                class="shadcn-message-action"
-                data-shadcn-action="edit"
-                @click="actions.edit()"
-              >
-                Edit
-              </button>
-              <button
-                v-if="canRetry"
-                type="button"
-                class="shadcn-message-action"
-                data-shadcn-action="retry"
-                @click="actions.retry()"
-              >
-                Retry
-              </button>
-              <button
-                v-if="canRegenerate"
-                type="button"
-                class="shadcn-message-action"
-                data-shadcn-action="regenerate"
-                @click="actions.regenerate()"
-              >
-                Regenerate
+              <button class="shadcn-demo__button" type="button" @click="actions.send('Audit this UI')">
+                Start audit
               </button>
             </div>
           </template>
 
-          <template #message-edit="{ draft, canSave, actions }">
-            <form class="shadcn-edit-form" @submit.prevent="actions.save()">
+          <template #message="context">
+            <article class="shadcn-message" :data-role="context.message.role">
+              <div class="shadcn-avatar">{{ context.message.role === 'user' ? 'ME' : 'AI' }}</div>
+              <div class="shadcn-message__body">
+                <p class="shadcn-message-copy">{{ context.parsed.content || 'Thinking...' }}</p>
+                <div v-if="context.traces.length" class="shadcn-trace-row">
+                  <span class="shadcn-trace-row__kind">{{ context.traces[0].kind }}</span>
+                  <div>
+                    <strong>{{ context.traces[0].title }}</strong>
+                    <p v-if="context.traces[0].content">{{ context.traces[0].content }}</p>
+                  </div>
+                </div>
+                <div v-if="context.editing" class="shadcn-edit-form">
+                  <textarea
+                    class="shadcn-edit-form__input"
+                    aria-label="Shadcn edit message"
+                    :value="context.editDraft"
+                    rows="3"
+                    @input="context.editActions.update(($event.target as HTMLTextAreaElement).value)"
+                  />
+                  <div class="shadcn-edit-form__actions">
+                    <button
+                      class="shadcn-message-action"
+                      type="button"
+                      data-shadcn-edit="save"
+                      :disabled="!context.canSaveEdit"
+                      @click="context.editActions.save()"
+                    >
+                      Save
+                    </button>
+                    <button
+                      class="shadcn-message-action"
+                      type="button"
+                      data-shadcn-edit="cancel"
+                      @click="context.editActions.cancel()"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+                <div class="shadcn-message-actions">
+                  <span class="shadcn-message-status">{{ context.phase ?? context.status ?? 'done' }}</span>
+                  <button
+                    v-if="context.message.content"
+                    type="button"
+                    class="shadcn-message-action"
+                    data-shadcn-action="copy"
+                    @click="context.actions.copy()"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    v-if="context.message.role === 'user' && !context.editing"
+                    type="button"
+                    class="shadcn-message-action"
+                    data-shadcn-action="edit"
+                    @click="context.editActions.start()"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    v-if="context.canRetry"
+                    type="button"
+                    class="shadcn-message-action"
+                    data-shadcn-action="retry"
+                    @click="context.actions.retry()"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    v-if="context.canRegenerate"
+                    type="button"
+                    class="shadcn-message-action"
+                    data-shadcn-action="regenerate"
+                    @click="context.actions.regenerate()"
+                  >
+                    Regenerate
+                  </button>
+                </div>
+              </div>
+            </article>
+          </template>
+
+          <template #input="{ draft, canSend, active, actions }">
+            <div class="shadcn-composer">
+              <span class="shadcn-composer-prefix">⌘</span>
               <textarea
-                class="shadcn-edit-form__input"
-                aria-label="Shadcn edit message"
+                class="ai-chat__composer-input"
+                aria-label="Message prompt"
+                rows="2"
                 :value="draft"
-                rows="3"
-                @input="actions.update(($event.target as HTMLTextAreaElement).value)"
+                :disabled="active"
+                placeholder="Message the shadcn-style assistant..."
+                @input="actions.updateDraft(($event.target as HTMLTextAreaElement).value)"
+                @keydown.enter.exact.prevent="actions.send()"
               />
-              <div class="shadcn-edit-form__actions">
-                <button
-                  class="shadcn-message-action"
-                  type="submit"
-                  data-shadcn-edit="save"
-                  :disabled="!canSave"
-                >
-                  Save
-                </button>
-                <button
-                  class="shadcn-message-action"
-                  type="button"
-                  data-shadcn-edit="cancel"
-                  @click="actions.cancel()"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </template>
-
-          <template #message-trace="{ trace }">
-            <div class="shadcn-trace-row">
-              <span class="shadcn-trace-row__kind">{{ trace.kind }}</span>
-              <div>
-                <strong>{{ trace.title }}</strong>
-                <p v-if="trace.content">{{ trace.content }}</p>
-                <small v-if="trace.items?.length">{{ trace.items.join(' / ') }}</small>
-              </div>
-              <span v-if="trace.status" class="shadcn-message-status">{{ trace.status }}</span>
+              <button
+                v-if="active"
+                class="shadcn-demo__button shadcn-demo__button--ghost"
+                type="button"
+                @click="actions.stop()"
+              >
+                Stop
+              </button>
+              <button
+                v-else
+                class="shadcn-demo__button"
+                type="button"
+                :disabled="!canSend"
+                @click="actions.send()"
+              >
+                Send
+              </button>
             </div>
-          </template>
-
-          <template #composer-prefix>
-            <span class="shadcn-composer-prefix">⌘</span>
-          </template>
-
-          <template #composer-actions>
-            <button
-              class="shadcn-demo__button shadcn-demo__button--ghost"
-              type="button"
-              @click="shadcnFailNext = true"
-            >
-              Error
-            </button>
           </template>
 
           <template #footer>

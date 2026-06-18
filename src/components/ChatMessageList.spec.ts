@@ -29,6 +29,43 @@ const setScrollMetrics = (
 }
 
 describe('ChatMessageList', () => {
+  it('renders empty and message slots as a standalone list building block', () => {
+    const empty = mount(ChatMessageList, {
+      props: { messages: [] },
+      slots: {
+        empty: '<p class="empty-slot">Nothing here</p>'
+      }
+    })
+
+    expect(empty.find('.empty-slot').text()).toBe('Nothing here')
+
+    const wrapper = mount(ChatMessageList, {
+      props: { messages },
+      slots: {
+        message:
+          '<template #message="{ message, index }"><article class="message-slot">{{ index }} {{ message.content }}</article></template>'
+      }
+    })
+
+    expect(wrapper.findAll('.message-slot').map((item) => item.text())).toEqual([
+      '0 Hello',
+      '1 Hi'
+    ])
+  })
+
+  it('allows the whole list body to be replaced with the list slot', () => {
+    const wrapper = mount(ChatMessageList, {
+      props: { messages },
+      slots: {
+        list:
+          '<template #list="{ messages, showJumpToLatest }"><div class="list-slot">{{ messages.length }} {{ showJumpToLatest }}</div></template>'
+      }
+    })
+
+    expect(wrapper.find('.list-slot').text()).toBe('2 false')
+    expect(wrapper.find('.ai-chat__message').exists()).toBe(false)
+  })
+
   it('auto-scrolls when the user is already near the bottom', async () => {
     const wrapper = mount(ChatMessageList, {
       props: { messages }

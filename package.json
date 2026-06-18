@@ -13,7 +13,8 @@
       "import": "./dist/vue3-ai-chat.js",
       "require": "./dist/vue3-ai-chat.umd.cjs"
     },
-    "./style.css": "./dist/style.css"
+    "./base.css": "./dist/style.css",
+    "./shadcn.css": "./dist/shadcn.css"
   },
   "files": [
     "dist"

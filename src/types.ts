@@ -2,7 +2,37 @@ export type AiChatRole = 'user' | 'assistant' | 'system' | 'error'
 
 export type AiChatMessageStatus = 'pending' | 'streaming' | 'done' | 'error' | 'stopped'
 
-export type AiChatTraceKind = 'reasoning' | 'search' | 'tool' | 'source'
+export type AiChatMessagePhase =
+  | 'queued'
+  | 'connecting'
+  | 'waiting'
+  | 'searching'
+  | 'tool_calling'
+  | 'reasoning'
+  | 'answering'
+  | 'done'
+  | 'error'
+  | 'stopped'
+
+export type AiChatParsedContent =
+  | {
+      type: 'text'
+      content: string
+    }
+  | {
+      type: 'html'
+      content: string
+    }
+
+export interface AiChatContentParserContext {
+  message: AiChatMessage
+}
+
+export interface AiChatContentParser {
+  parse: (content: string, context: AiChatContentParserContext) => AiChatParsedContent
+}
+
+export type AiChatTraceKind = 'reasoning' | 'search' | 'tool'
 
 export type AiChatTraceStatus = 'pending' | 'done' | 'error'
 
@@ -31,6 +61,7 @@ export interface AiChatMessage {
   role: AiChatRole
   content: string
   status?: AiChatMessageStatus
+  phase?: AiChatMessagePhase
   sources?: AiChatSource[]
   traces?: AiChatTrace[]
   createdAt?: number
@@ -43,6 +74,7 @@ export interface AiChatSendContext {
   signal: AbortSignal
   append: (chunk: string) => void
   update: (message: Partial<AiChatMessage>) => void
+  setPhase: (phase: AiChatMessagePhase) => void
   appendTrace: (trace: Omit<AiChatTrace, 'id' | 'createdAt'> & Partial<Pick<AiChatTrace, 'id' | 'createdAt'>>) => string
   updateTrace: (id: string, trace: Partial<AiChatTrace>) => void
 }
@@ -60,4 +92,68 @@ export interface AiChatAdapter {
 export interface AiChatError {
   message: string
   cause?: unknown
+}
+
+export interface AiChatRootActions {
+  send: (prompt: string) => Promise<void>
+  stop: () => void
+  clear: () => void
+}
+
+export interface AiChatMessageActions {
+  copy: () => Promise<void>
+  retry: () => Promise<AiChatRegeneratePayload | null>
+  regenerate: () => Promise<AiChatRegeneratePayload | null>
+}
+
+export interface AiChatMessageEditActions {
+  start: () => void
+  update: (value: string) => void
+  save: () => Promise<void>
+  cancel: () => void
+}
+
+export interface AiChatInputActions {
+  updateDraft: (value: string) => void
+  send: () => Promise<void>
+  stop: () => void
+  focus: () => void
+}
+
+export interface AiChatRootSlotContext {
+  messages: AiChatMessage[]
+  active: boolean
+  disabled: boolean
+  error: AiChatError | null
+  showJumpToLatest: boolean
+  isNearBottom: boolean
+  jumpToLatest: () => void
+  actions: AiChatRootActions
+}
+
+export interface AiChatMessageSlotContext {
+  message: AiChatMessage
+  index: number
+  parsed: AiChatParsedContent
+  phase?: AiChatMessagePhase
+  status?: AiChatMessageStatus
+  traces: AiChatTrace[]
+  sources: AiChatSource[]
+  active: boolean
+  disabled: boolean
+  editing: boolean
+  editDraft: string
+  canSaveEdit: boolean
+  canRetry: boolean
+  canRegenerate: boolean
+  actions: AiChatMessageActions
+  editActions: AiChatMessageEditActions
+}
+
+export interface AiChatInputSlotContext {
+  draft: string
+  canSend: boolean
+  active: boolean
+  disabled: boolean
+  actions: AiChatInputActions
 }

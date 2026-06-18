@@ -15,7 +15,7 @@ describe('demo App', () => {
   it('switches to the shadcn-style demo variant', async () => {
     const wrapper = mount(App)
 
-    expect(wrapper.text()).toContain('Reusable AI chat component')
+    expect(wrapper.text()).toContain('Headless AI chat component')
 
     await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
 
@@ -61,7 +61,7 @@ describe('demo App', () => {
     const wrapper = mount(App)
 
     expect(wrapper.text()).not.toContain('Loaded the local demo adapter')
-    expect(wrapper.find('.ai-chat__traces').exists()).toBe(false)
+    expect(wrapper.find('.demo-traces').exists()).toBe(false)
   })
 
   it('shows immediate process feedback after sending a message', async () => {
@@ -73,22 +73,22 @@ describe('demo App', () => {
 
     expect(wrapper.text()).toContain('Need process feedback')
     expect(wrapper.text()).toContain('Thinking summary')
-    expect(wrapper.find('.ai-chat__traces').exists()).toBe(true)
+    expect(wrapper.find('.demo-traces').exists()).toBe(true)
   })
 
   it('showcases newly added chat features', async () => {
     const wrapper = mount(App)
 
-    expect(wrapper.text()).toContain('Newly showcased features')
+    expect(wrapper.text()).toContain('Five top-level slots')
     expect(wrapper.text()).toContain('Markdown rendering')
-    expect(wrapper.find('.ai-chat__sources').exists()).toBe(true)
+    expect(wrapper.find('.demo-sources').exists()).toBe(true)
     expect(wrapper.text()).toContain('Vue API Reference')
     expect(wrapper.text()).toContain('Persist events')
 
     await wrapper.find('[data-demo-prefill]').trigger('click')
 
     expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain(
-      'Summarize the new AiChat features'
+      'Summarize the new AiChat headless API'
     )
   })
 })

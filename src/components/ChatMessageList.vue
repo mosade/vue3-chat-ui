@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
-import ChatMessage from './ChatMessage.vue'
 import type { AiChatMessage } from '../types'
 
 const props = withDefaults(
@@ -73,36 +72,15 @@ watch(
           </slot>
         </div>
 
-        <ChatMessage
+        <slot
           v-for="(message, index) in messages"
           :key="message.id"
+          name="message"
           :message="message"
           :index="index"
         >
-          <template #avatar="slotProps">
-            <slot name="avatar" v-bind="slotProps" />
-          </template>
-          <template #message-content="slotProps">
-            <slot name="message-content" v-bind="slotProps">
-              {{ slotProps.message.content }}
-            </slot>
-          </template>
-          <template #message-actions="slotProps">
-            <slot name="message-actions" v-bind="slotProps" />
-          </template>
-          <template #message-traces="slotProps">
-            <slot name="message-traces" v-bind="slotProps" />
-          </template>
-          <template #message-trace="slotProps">
-            <slot name="message-trace" v-bind="slotProps" />
-          </template>
-          <template #message-sources="slotProps">
-            <slot name="message-sources" v-bind="slotProps" />
-          </template>
-          <template #message-source="slotProps">
-            <slot name="message-source" v-bind="slotProps" />
-          </template>
-        </ChatMessage>
+          {{ message.content }}
+        </slot>
       </slot>
     </section>
 

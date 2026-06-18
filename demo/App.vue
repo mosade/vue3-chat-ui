@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AiChat, type AiChatMessage, type AiChatSendContext } from '../src'
+import {
+  AiChat,
+  ChatComposer,
+  markdownParser,
+  type AiChatMessage,
+  type AiChatMessageSlotContext,
+  type AiChatSendContext
+} from '../src'
 import ShadcnDemo from './ShadcnDemo.vue'
 
 type DemoVariant = 'default' | 'shadcn'
@@ -13,14 +20,14 @@ const messages = ref<AiChatMessage[]>([
     id: 'welcome',
     role: 'assistant',
     content:
-      '**Markdown rendering** is enabled in this demo. Try copy, edit, retry, regenerate, stop, and the jump-to-latest control.',
+      '**Markdown rendering** is enabled through the parser prop. Try copy, edit, retry, regenerate, stop, and clear actions from slots.',
     status: 'done',
     sources: [
       {
         id: 'vue-api-reference',
         title: 'Vue API Reference',
         url: 'https://vuejs.org/api/',
-        snippet: 'Used here as an example citation rendered from message.sources.'
+        snippet: 'Example citation rendered from message.sources.'
       }
     ]
   }
@@ -45,21 +52,7 @@ const themeStyle = computed(() =>
         '--ai-chat-gap': '10px',
         '--ai-chat-font-size': '13px'
       }
-    : {
-        '--ai-chat-bg': '#ffffff',
-        '--ai-chat-fg': '#172026',
-        '--ai-chat-muted-fg': '#667085',
-        '--ai-chat-border': '#cfd8dc',
-        '--ai-chat-user-bg': '#0f766e',
-        '--ai-chat-user-fg': '#ffffff',
-        '--ai-chat-assistant-bg': '#f4f7f9',
-        '--ai-chat-assistant-fg': '#172026',
-        '--ai-chat-error-bg': '#fee2e2',
-        '--ai-chat-error-fg': '#991b1b',
-        '--ai-chat-radius': '8px',
-        '--ai-chat-gap': '12px',
-        '--ai-chat-font-size': '14px'
-      }
+    : {}
 )
 
 const wait = (ms: number, signal: AbortSignal) =>
@@ -81,26 +74,29 @@ const sendDemoMessage = async ({
   update,
   appendTrace,
   updateTrace,
+  setPhase,
   signal
 }: AiChatSendContext) => {
   if (failNext.value) {
     failNext.value = false
-    await wait(800, signal)
-    throw new Error('Demo adapter failed on purpose. Regenerate the failed response.')
+    await wait(300, signal)
+    throw new Error('Demo adapter failed on purpose. Retry the failed response.')
   }
 
+  setPhase('reasoning')
   const thinkingTrace = appendTrace({
     kind: 'reasoning',
     title: 'Thinking summary',
     content: 'Turning the prompt into a short answer plan.',
     status: 'pending'
   })
-  await wait(580, signal)
+  await wait(300, signal)
   updateTrace(thinkingTrace, {
     content: 'Plan ready: explain adapter flow, streaming, and stop behavior.',
     status: 'done'
   })
 
+  setPhase('searching')
   const searchTrace = appendTrace({
     kind: 'search',
     title: 'Searching data',
@@ -108,21 +104,21 @@ const sendDemoMessage = async ({
     status: 'pending',
     items: ['README.md', 'src/types.ts']
   })
-  await wait(880, signal)
+  await wait(360, signal)
   updateTrace(searchTrace, {
-    content: 'Found AiChatAdapter, AiChatSendContext, slots, and CSS variables.',
+    content: 'Found parser, slots, actions, and CSS preset exports.',
     status: 'done'
   })
 
+  setPhase('answering')
   const chunks = [
     `Received: "${prompt}". `,
-    'The component keeps provider logic outside the UI, ',
-    'streams chunks into an assistant placeholder, ',
-    'and preserves partial text when you stop generation.'
+    'The root component owns state and dispatches five top-level slots, ',
+    'while parser and preset choices stay replaceable.'
   ]
 
   for (const chunk of chunks) {
-    await wait(560, signal)
+    await wait(260, signal)
     append(chunk)
   }
 
@@ -132,7 +128,7 @@ const sendDemoMessage = async ({
         id: `source-${Date.now()}`,
         title: 'AiChatSendContext',
         url: 'https://github.com/',
-        snippet: 'Demo source metadata is attached by the adapter through context.update().'
+        snippet: 'Demo source metadata is attached through context.update().'
       }
     ]
   })
@@ -140,7 +136,7 @@ const sendDemoMessage = async ({
 
 const messageCount = computed(() => messages.value.length)
 const prefillComposer = () => {
-  composerInput.value = 'Summarize the new AiChat features with sources.'
+  composerInput.value = 'Summarize the new AiChat headless API with sources.'
 }
 const recordPersist = (
   nextMessages: AiChatMessage[],
@@ -151,6 +147,10 @@ const recordPersist = (
     ...persistEvents.value
   ].slice(0, 5)
 }
+
+const roleLabel = (message: AiChatMessage) => (message.role === 'user' ? 'You' : 'AI')
+const traceSummary = (context: AiChatMessageSlotContext) =>
+  context.phase ? `${context.phase}${context.status ? ` / ${context.status}` : ''}` : context.status ?? 'done'
 </script>
 
 <template>
@@ -180,10 +180,10 @@ const recordPersist = (
       <aside class="demo-panel" aria-label="Demo controls">
         <div>
           <p class="demo-eyebrow">vue3-ai-chat</p>
-          <h1>Reusable AI chat component</h1>
+          <h1>Headless AI chat component</h1>
           <p class="demo-copy">
-            Default Vue 3 UI plus a headless state machine. This demo runs fully
-            in the browser with a mock streaming adapter.
+            Five top-level slots, replaceable parser, explicit CSS presets, and
+            provider-neutral state.
           </p>
         </div>
 
@@ -199,18 +199,6 @@ const recordPersist = (
           <button class="demo-inline-button" type="button" data-demo-prefill @click="prefillComposer">
             Prefill controlled composer
           </button>
-        </div>
-
-        <div class="demo-feature-list">
-          <strong>Newly showcased features</strong>
-          <ul>
-            <li>Markdown rendering</li>
-            <li>Copy, retry, edit, and regenerate actions</li>
-            <li>Controlled composer input</li>
-            <li>Citations from message.sources</li>
-            <li>Stopped response status</li>
-            <li>Bottom-aware auto-scroll</li>
-          </ul>
         </div>
 
         <div class="demo-stat">
@@ -236,65 +224,151 @@ const recordPersist = (
           v-model:messages="messages"
           v-model:input="composerInput"
           :adapter="{ send: sendDemoMessage }"
+          :parser="markdownParser"
           conversation-id="default-demo"
           :on-persist="recordPersist"
           auto-focus
-          markdown
-          placeholder="Ask the demo adapter..."
         >
-          <template #header="{ active }">
+          <template #header="{ messages: slotMessages, active, actions, showJumpToLatest, jumpToLatest }">
             <div class="demo-chat-header">
               <div>
                 <strong>Support Copilot</strong>
-                <span>{{ active ? 'Responding' : 'Ready' }}</span>
+                <span>{{ active ? 'Responding' : `${slotMessages.length} messages` }}</span>
               </div>
-              <span class="demo-live" :class="{ 'demo-live--active': active }" />
+              <div class="demo-header-actions">
+                <button
+                  v-if="showJumpToLatest"
+                  class="demo-inline-button"
+                  type="button"
+                  @click="jumpToLatest()"
+                >
+                  Latest
+                </button>
+                <button class="demo-inline-button" type="button" @click="actions.clear()">
+                  Clear
+                </button>
+              </div>
             </div>
           </template>
 
-          <template #empty>
+          <template #empty="{ actions }">
             <div class="demo-empty">
               <strong>No messages yet</strong>
-              <span>Send a prompt to start the mock stream.</span>
+              <button class="demo-inline-button" type="button" @click="actions.send('Show the new API')">
+                Ask about the API
+              </button>
             </div>
           </template>
 
-          <template #avatar="{ message }">
-            <span class="demo-avatar">{{ message.role === 'user' ? 'U' : 'AI' }}</span>
+          <template #message="context">
+            <article class="demo-message" :class="`demo-message--${context.message.role}`">
+              <div class="demo-avatar">{{ roleLabel(context.message) }}</div>
+              <div class="demo-message__body">
+                <div class="demo-message__meta">
+                  <strong>{{ roleLabel(context.message) }}</strong>
+                  <span>{{ traceSummary(context) }}</span>
+                </div>
+                <div
+                  v-if="context.parsed.type === 'html'"
+                  class="demo-message-text"
+                  v-html="context.parsed.content"
+                />
+                <p v-else class="demo-message-text">{{ context.parsed.content }}</p>
+
+                <details v-if="context.traces.length" class="demo-traces">
+                  <summary>Process {{ context.traces.length }}</summary>
+                  <div v-for="trace in context.traces" :key="trace.id" class="demo-trace-card">
+                    <span>{{ trace.kind }}</span>
+                    <strong>{{ trace.title }}</strong>
+                    <p v-if="trace.content">{{ trace.content }}</p>
+                  </div>
+                </details>
+
+                <div v-if="context.sources.length" class="demo-sources">
+                  <div v-for="source in context.sources" :key="source.id" class="demo-source-card">
+                    <strong>{{ source.title }}</strong>
+                    <a v-if="source.url" :href="source.url" target="_blank" rel="noreferrer">
+                      {{ source.url }}
+                    </a>
+                    <p v-if="source.snippet">{{ source.snippet }}</p>
+                  </div>
+                </div>
+
+                <div v-if="context.editing" class="demo-edit">
+                  <textarea
+                    aria-label="Edit draft"
+                    :value="context.editDraft"
+                    @input="context.editActions.update(($event.target as HTMLTextAreaElement).value)"
+                  />
+                  <button
+                    class="demo-inline-button"
+                    type="button"
+                    :disabled="!context.canSaveEdit"
+                    @click="context.editActions.save()"
+                  >
+                    Save
+                  </button>
+                  <button class="demo-inline-button" type="button" @click="context.editActions.cancel()">
+                    Cancel
+                  </button>
+                </div>
+
+                <div class="demo-message-actions">
+                  <button
+                    v-if="context.message.content"
+                    class="demo-inline-button"
+                    type="button"
+                    @click="context.actions.copy()"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    v-if="context.message.role === 'user' && !context.editing"
+                    class="demo-inline-button"
+                    type="button"
+                    :disabled="context.disabled || context.active"
+                    @click="context.editActions.start()"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    v-if="context.canRetry"
+                    class="demo-inline-button"
+                    type="button"
+                    @click="context.actions.retry()"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    v-if="context.canRegenerate"
+                    class="demo-inline-button"
+                    type="button"
+                    @click="context.actions.regenerate()"
+                  >
+                    Regenerate
+                  </button>
+                </div>
+              </div>
+            </article>
           </template>
 
-          <template #message-trace="{ trace }">
-            <div class="demo-trace-card">
-              <span>{{ trace.kind }}</span>
-              <strong>{{ trace.title }}</strong>
-              <p v-if="trace.content">{{ trace.content }}</p>
+          <template #input="{ draft, canSend, active, actions }">
+            <div class="demo-input">
+              <ChatComposer
+                :input="draft"
+                :active="active"
+                :disabled="active"
+                placeholder="Ask the demo adapter..."
+                @update:input="actions.updateDraft"
+                @submit="actions.send()"
+                @stop="actions.stop()"
+              />
+              <span class="demo-composer-state">{{ draft.length }} chars / {{ canSend ? 'ready' : 'waiting' }}</span>
             </div>
-          </template>
-
-          <template #message-source="{ source }">
-            <div class="demo-source-card">
-              <strong>{{ source.title }}</strong>
-              <a v-if="source.url" :href="source.url" target="_blank" rel="noreferrer">
-                {{ source.url }}
-              </a>
-              <p v-if="source.snippet">{{ source.snippet }}</p>
-            </div>
-          </template>
-
-          <template #composer-prefix>
-            <span class="demo-prefix" aria-hidden="true">AI</span>
-          </template>
-
-          <template #composer-actions="{ draft, canSubmit }">
-            <span class="demo-composer-state">{{ draft.length }} chars</span>
-            <button class="demo-inline-button" type="button" @click="failNext = true">
-              Fail next
-            </button>
-            <span class="demo-composer-state">{{ canSubmit ? 'Ready' : 'Waiting' }}</span>
           </template>
 
           <template #footer>
-            Markdown, citations, persistence hooks, controlled input, stopped status, and provider-neutral send logic.
+            Parser, actions, persistence hooks, controlled input, and CSS presets are composed explicitly.
           </template>
         </AiChat>
       </section>

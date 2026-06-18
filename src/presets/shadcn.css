@@ -1,0 +1,54 @@
+.ai-chat--shadcn,
+.shadcn-demo .ai-chat {
+  --ai-chat-bg: hsl(0 0% 100%);
+  --ai-chat-fg: hsl(222.2 84% 4.9%);
+  --ai-chat-muted-fg: hsl(215.4 16.3% 46.9%);
+  --ai-chat-border: hsl(214.3 31.8% 91.4%);
+  --ai-chat-user-bg: hsl(222.2 47.4% 11.2%);
+  --ai-chat-user-fg: hsl(210 40% 98%);
+  --ai-chat-assistant-bg: hsl(210 40% 96.1%);
+  --ai-chat-assistant-fg: hsl(222.2 84% 4.9%);
+  --ai-chat-error-bg: hsl(0 84.2% 60.2% / 0.12);
+  --ai-chat-error-fg: hsl(0 72.2% 50.6%);
+  --ai-chat-radius: 8px;
+  --ai-chat-gap: 10px;
+}
+
+.ai-chat--shadcn .ai-chat__message-content,
+.shadcn-demo .ai-chat__message-content {
+  border: 1px solid var(--ai-chat-border);
+  box-shadow: 0 1px 2px hsl(222.2 84% 4.9% / 0.04);
+}
+
+.ai-chat--shadcn .ai-chat__button,
+.shadcn-demo .ai-chat__button {
+  min-height: 36px;
+  color: hsl(210 40% 98%);
+  background: hsl(222.2 47.4% 11.2%);
+  border-color: hsl(222.2 47.4% 11.2%);
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.ai-chat--shadcn .ai-chat__button--secondary,
+.shadcn-demo .ai-chat__button--secondary {
+  color: var(--ai-chat-fg);
+  background: hsl(0 0% 100%);
+  border-color: var(--ai-chat-border);
+}
+
+.ai-chat--shadcn .ai-chat__composer-input,
+.shadcn-demo .ai-chat__composer-input {
+  background: hsl(0 0% 100%);
+  border-color: hsl(214.3 31.8% 91.4%);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px hsl(222.2 84% 4.9% / 0.04);
+}
+
+.ai-chat--shadcn .ai-chat__traces,
+.shadcn-demo .ai-chat__traces,
+.ai-chat--shadcn .ai-chat__source,
+.shadcn-demo .ai-chat__source {
+  background: hsl(0 0% 100%);
+  border-color: var(--ai-chat-border);
+}

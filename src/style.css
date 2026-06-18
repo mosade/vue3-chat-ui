@@ -31,30 +31,6 @@
   font-size: var(--ai-chat-font-size);
 }
 
-.ai-chat__header,
-.ai-chat__footer {
-  padding: 14px 16px;
-  border-color: var(--ai-chat-border);
-}
-
-.ai-chat__header {
-  border-bottom: 1px solid var(--ai-chat-border);
-}
-
-.ai-chat__footer {
-  border-top: 1px solid var(--ai-chat-border);
-  color: var(--ai-chat-muted-fg);
-}
-
-.ai-chat__toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--ai-chat-border);
-}
-
 .ai-chat__messages-wrap {
   position: relative;
   display: flex;
