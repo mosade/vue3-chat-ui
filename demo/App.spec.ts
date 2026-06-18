@@ -70,6 +70,18 @@ describe('demo App', () => {
     expect(wrapper.find('.demo-traces').exists()).toBe(true)
   })
 
+  it('streams the markdown example document through markdown-it in the demo response', async () => {
+    const wrapper = mount(App)
+
+    await wrapper.find('textarea').setValue('Render the markdown example')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    expect(wrapper.find('.demo-message-text h1').text()).toContain('h1 Heading')
+    expect(wrapper.find('img[src="https://picsum.photos/200/300"]').exists()).toBe(true)
+    expect(wrapper.find('a[href="https://picsum.photos/200/300"]').text()).toContain('Open Picsum image')
+  })
+
   it('showcases newly added chat features', async () => {
     const wrapper = mount(App)
 

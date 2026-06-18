@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import MarkdownIt from 'markdown-it'
 import { computed, ref } from 'vue'
 import {
   AiChat,
   AiContent,
-  markdownParser,
   type AiChatMessage,
   type AiChatSendContext,
   type AiContentParser
 } from '../src'
+import markdownExample from '../docs/markdown-example.md?raw'
 import ShadcnDemo from './ShadcnDemo.vue'
 
 type DemoVariant = 'default' | 'shadcn'
@@ -33,23 +34,17 @@ const messages = ref<AiChatMessage[]>([
   }
 ])
 const failNext = ref(false)
+const markdownIt = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true
+})
 
 const demoContentParser: AiContentParser = {
-  parse: (content, context) => {
-    const parsed = markdownParser.parse(content, context)
-
-    if (parsed.type !== 'html') {
-      return parsed
-    }
-
-    return {
-      type: 'html',
-      content: parsed.content.replace(
-        /!\[([^\]\n]*)\]\((https?:\/\/[^)\s]+)\)/g,
-        '<img alt="$1" src="$2" loading="lazy">'
-      )
-    }
-  }
+  parse: (content) => ({
+    type: 'html',
+    content: markdownIt.render(content)
+  })
 }
 
 const wait = (ms: number, signal: AbortSignal) =>
@@ -108,15 +103,11 @@ const sendDemoMessage = async ({
   })
 
   setPhase('answering')
-  const chunks = [
-    `Received: "${prompt}". `,
-    'The root component owns state and dispatches five top-level slots.\n\n',
-    'AiContent parses stable blocks once, keeps the live tail isolated, ',
-    'and can render completed image syntax without remounting earlier media.'
-  ]
+  const response = `Received: "${prompt}".\n\n${markdownExample}`
+  const chunks = response.match(/[\s\S]{1,520}/g) ?? []
 
   for (const chunk of chunks) {
-    await wait(260, signal)
+    await wait(20, signal)
     append(chunk)
   }
 
