@@ -18,6 +18,16 @@ You will like those projects!
 ###### h6 Heading
 
 
+::: warning
+*here be dragons*
+:::
+
+## Streaming media check
+
+![Picsum demo image](https://picsum.photos/200/300)
+
+[Open Picsum image](https://picsum.photos/200/300)
+
 ## Horizontal Rules
 
 ___
@@ -239,13 +249,3 @@ It converts "HTML", but keep intact partial entries like "xxxHTMLyyy" and so on.
 *[HTML]: Hyper Text Markup Language
 
 ### [Custom containers](https://github.com/markdown-it/markdown-it-container)
-
-::: warning
-*here be dragons*
-:::
-
-## Streaming media check
-
-![Picsum demo image](https://picsum.photos/200/300)
-
-[Open Picsum image](https://picsum.photos/200/300)
