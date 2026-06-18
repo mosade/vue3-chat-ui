@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { nextTick } from 'vue'
@@ -12,6 +12,10 @@ describe('demo App', () => {
         writeText: vi.fn()
       }
     })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders the Google-style default demo and switches to the shadcn preset demo', async () => {
@@ -71,13 +75,20 @@ describe('demo App', () => {
   })
 
   it('streams the markdown example document through markdown-it in the demo response', async () => {
+    vi.useFakeTimers()
     const wrapper = mount(App)
 
     await wrapper.find('textarea').setValue('Render the markdown example')
     await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await vi.advanceTimersByTimeAsync(1700)
+    await nextTick()
 
     expect(wrapper.find('.demo-message-text h1').text()).toContain('h1 Heading')
+    expect(wrapper.find('img[src="https://picsum.photos/200/300"]').exists()).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(16000)
+    await nextTick()
+
     expect(wrapper.find('img[src="https://picsum.photos/200/300"]').exists()).toBe(true)
     expect(wrapper.find('a[href="https://picsum.photos/200/300"]').text()).toContain('Open Picsum image')
   })
@@ -113,5 +124,14 @@ describe('demo App', () => {
     expect(css).toContain('bottom: 0')
     expect(css).toContain('box-shadow:')
     expect(css).toContain('.shadcn-demo__chat .ai-chat--shadcn')
+  })
+
+  it('streams markdown in irregular block-sized chunks instead of fixed character slices', () => {
+    const source = readFileSync(resolve(__dirname, 'App.vue'), 'utf8')
+
+    expect(source).toContain('const markdownStreamDelaysMs = [160, 80, 240, 120, 320, 100]')
+    expect(source).toContain('createMarkdownStreamChunks')
+    expect(source).toContain('split(/\\n{2,}/)')
+    expect(source).not.toContain('response.match(/[\\s\\S]{1,520}/g)')
   })
 })

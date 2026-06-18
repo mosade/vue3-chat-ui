@@ -34,6 +34,7 @@ const messages = ref<AiChatMessage[]>([
   }
 ])
 const failNext = ref(false)
+const markdownStreamDelaysMs = [160, 80, 240, 120, 320, 100]
 const markdownIt = new MarkdownIt({
   html: false,
   linkify: true,
@@ -59,6 +60,13 @@ const wait = (ms: number, signal: AbortSignal) =>
       { once: true }
     )
   })
+
+const createMarkdownStreamChunks = (content: string) =>
+  content
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => `${block}\n\n`)
 
 const sendDemoMessage = async ({
   prompt,
@@ -104,10 +112,10 @@ const sendDemoMessage = async ({
 
   setPhase('answering')
   const response = `Received: "${prompt}".\n\n${markdownExample}`
-  const chunks = response.match(/[\s\S]{1,520}/g) ?? []
+  const chunks = createMarkdownStreamChunks(response)
 
-  for (const chunk of chunks) {
-    await wait(20, signal)
+  for (const [index, chunk] of chunks.entries()) {
+    await wait(markdownStreamDelaysMs[index % markdownStreamDelaysMs.length], signal)
     append(chunk)
   }
 
