@@ -69,6 +69,9 @@ const adapter: AiChatAdapter = {
 
 ## AiChat API
 
+完整 props、事件、slots、hooks 和 types 请看
+[组件详细指南](./docs/component-guide.md)。
+
 `AiChat` 暴露五个顶层 slot：
 
 | Slot | Context |
