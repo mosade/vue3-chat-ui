@@ -226,7 +226,17 @@ describe('demo App', () => {
     expect(css).toContain('position: sticky')
     expect(css).toContain('bottom: 0')
     expect(css).toContain('box-shadow:')
-    expect(css).toContain('.shadcn-demo__chat .ai-chat--shadcn')
+    expect(css).toContain('.deepseek-demo')
+    expect(css).toContain('.deepseek-demo__hero')
+    expect(css).toContain('.deepseek-demo__settings')
+    expect(css).toContain('.deepseek-demo__suggestions')
+    expect(css).toContain('.deepseek-message')
+    expect(css).toContain('.deepseek-composer')
+    expect(css).toContain('.deepseek-status')
+    expect(css).toContain('.deepseek-button:focus-visible')
+    expect(css).toContain('box-shadow')
+    expect(css).not.toContain('@radix-ui')
+    expect(css).not.toContain('shadcn-vue')
   })
 
   it('streams markdown with irregular token-sized chunks instead of fixed character slices', () => {

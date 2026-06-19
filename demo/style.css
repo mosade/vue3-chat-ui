@@ -124,7 +124,11 @@ input {
 .demo-switcher__button:focus-visible,
 .demo-inline-button:focus-visible,
 .google-send:focus-visible,
-.shadcn-demo__button:focus-visible {
+.deepseek-button:focus-visible,
+.deepseek-suggestion:focus-visible,
+.deepseek-field input:focus-visible,
+.deepseek-field select:focus-visible,
+.deepseek-composer textarea:focus-visible {
   outline: 2px solid #1a73e8;
   outline-offset: 2px;
 }
@@ -384,184 +388,6 @@ input {
   opacity: 0.45;
 }
 
-.shadcn-demo {
-  min-height: calc(100vh - 40px);
-  padding-top: 68px;
-  color: #09090b;
-  background: #ffffff;
-}
-
-.shadcn-demo__topbar {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-  justify-content: space-between;
-  width: min(1180px, 100%);
-  margin: 0 auto 18px;
-  padding: 18px 0;
-  border-bottom: 1px solid #e4e4e7;
-}
-
-.shadcn-demo__topbar h1 {
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.15;
-  letter-spacing: 0;
-}
-
-.shadcn-demo__topbar p {
-  max-width: 620px;
-  margin: 8px 0 0;
-  color: #71717a;
-  line-height: 1.55;
-}
-
-.shadcn-demo__eyebrow,
-.shadcn-demo__label {
-  margin: 0 0 8px;
-  color: #52525b;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0;
-}
-
-.shadcn-demo__actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.shadcn-demo__badge,
-.shadcn-demo__button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 12px;
-  color: #18181b;
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.shadcn-demo__button {
-  cursor: pointer;
-}
-
-.shadcn-demo__button--ghost {
-  color: #71717a;
-  background: transparent;
-}
-
-.shadcn-demo__badge[data-active="true"] {
-  color: #065f46;
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-.shadcn-demo__grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-  gap: 18px;
-  width: min(1180px, 100%);
-  margin: 0 auto;
-}
-
-.shadcn-demo__sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-height: calc(100vh - 144px);
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
-  border-radius: 8px;
-}
-
-.shadcn-demo__section strong {
-  display: block;
-  font-size: 16px;
-}
-
-.shadcn-demo__section p {
-  margin: 8px 0 0;
-  color: #71717a;
-  line-height: 1.5;
-}
-
-.shadcn-demo__metrics {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.shadcn-demo__metrics div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-  background: #fafafa;
-  border: 1px solid #e4e4e7;
-  border-radius: 8px;
-}
-
-.shadcn-demo__metrics span {
-  color: #71717a;
-  font-size: 13px;
-}
-
-.shadcn-demo__metrics strong {
-  font-size: 14px;
-}
-
-.shadcn-demo__state {
-  flex: 1;
-  min-height: 220px;
-  overflow: auto;
-  margin: 0;
-  padding: 12px;
-  color: #3f3f46;
-  background: #fafafa;
-  border: 1px solid #e4e4e7;
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.shadcn-demo__chat {
-  min-width: 0;
-}
-
-.shadcn-demo__chat .ai-chat--shadcn {
-  min-height: calc(100vh - 144px);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-}
-
-.shadcn-chat-header {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.shadcn-chat-header div {
-  display: grid;
-  gap: 2px;
-}
-
-.shadcn-chat-header span:not(.shadcn-demo__badge) {
-  color: #71717a;
-  font-size: 12px;
-}
-
-.shadcn-empty {
-  display: grid;
-  gap: 10px;
-}
-
 .deepseek-demo {
   min-height: calc(100vh - 40px);
   padding-top: 68px;
@@ -649,6 +475,11 @@ input {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.deepseek-chat-top {
+  display: grid;
+  gap: 12px;
 }
 
 .deepseek-chat-header {
@@ -808,7 +639,7 @@ input {
   }
 
   .google-demo,
-  .shadcn-demo {
+  .deepseek-demo {
     padding-top: 58px;
   }
 
@@ -827,25 +658,29 @@ input {
     border-radius: 20px;
   }
 
-  .shadcn-demo__topbar,
-  .shadcn-demo__grid {
+  .deepseek-demo__hero,
+  .deepseek-demo__layout {
     width: 100%;
   }
 
-  .shadcn-demo__topbar {
+  .deepseek-demo__hero {
     flex-direction: column;
   }
 
-  .shadcn-demo__actions {
-    justify-content: flex-start;
-  }
-
-  .shadcn-demo__grid {
+  .deepseek-demo__layout {
     grid-template-columns: 1fr;
   }
 
-  .shadcn-demo__sidebar,
-  .shadcn-demo__chat .ai-chat--shadcn {
+  .deepseek-demo__chat .ai-chat--shadcn {
     min-height: auto;
+  }
+
+  .deepseek-demo__settings {
+    order: -1;
+  }
+
+  .deepseek-composer {
+    grid-template-columns: 1fr;
+    margin: 0 10px 10px;
   }
 }

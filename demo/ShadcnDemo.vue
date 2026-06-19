@@ -194,23 +194,6 @@ const sendDeepseekMessage = async ({
 
     <section class="deepseek-demo__layout">
       <section class="deepseek-demo__chat">
-        <div class="deepseek-demo__suggestions" aria-label="Prompt suggestions">
-          <button
-            v-for="suggestion in suggestions"
-            :key="suggestion.title"
-            class="deepseek-suggestion"
-            type="button"
-            data-deepseek-suggestion
-            @click="messages.push({
-              id: `suggestion-${Date.now()}`,
-              role: 'user',
-              content: suggestion.prompt,
-              status: 'done'
-            })"
-          >
-            {{ suggestion.title }}
-          </button>
-        </div>
         <AiChat
           v-model:messages="messages"
           class="ai-chat--shadcn"
@@ -218,14 +201,29 @@ const sendDeepseekMessage = async ({
           auto-focus
         >
           <template #header="{ active, actions }">
-            <div class="deepseek-chat-header">
-              <div>
-                <strong>Assistant</strong>
-                <span>{{ active ? 'Responding' : `${messageCount} messages` }}</span>
+            <div class="deepseek-chat-top">
+              <div class="deepseek-chat-header">
+                <div>
+                  <strong>Assistant</strong>
+                  <span>{{ active ? 'Responding' : `${messageCount} messages` }}</span>
+                </div>
+                <button class="deepseek-button deepseek-button--secondary" type="button" @click="actions.clear()">
+                  Clear
+                </button>
               </div>
-              <button class="deepseek-button deepseek-button--secondary" type="button" @click="actions.clear()">
-                Clear
-              </button>
+              <div class="deepseek-demo__suggestions" aria-label="Prompt suggestions">
+                <button
+                  v-for="suggestion in suggestions"
+                  :key="suggestion.title"
+                  class="deepseek-suggestion"
+                  type="button"
+                  data-deepseek-suggestion
+                  :disabled="active"
+                  @click="actions.send(suggestion.prompt)"
+                >
+                  {{ suggestion.title }}
+                </button>
+              </div>
             </div>
           </template>
 
