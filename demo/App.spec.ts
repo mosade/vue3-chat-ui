@@ -62,6 +62,49 @@ describe('demo App', () => {
     expect(wrapper.text()).toContain('Enter a DeepSeek API key')
   })
 
+  it('calls DeepSeek chat completions and renders streamed response text', async () => {
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'))
+        controller.enqueue(
+          encoder.encode('data: {"choices":[{"delta":{"content":" from DeepSeek"}}]}\n\n')
+        )
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+        controller.close()
+      }
+    })
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      body: stream,
+      headers: new Headers({ 'content-type': 'text/event-stream' })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+    await wrapper.find('[data-deepseek-api-key]').setValue('sk-test')
+    await wrapper.find('textarea').setValue('Say hello')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await new Promise((resolve) => setTimeout(resolve, 120))
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.deepseek.com/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-test',
+          'Content-Type': 'application/json'
+        })
+      })
+    )
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    expect(request.model).toBe('deepseek-v4-flash')
+    expect(request.stream).toBe(true)
+    expect(request.messages.at(-1)).toEqual({ role: 'user', content: 'Say hello' })
+    expect(wrapper.text()).toContain('Hello from DeepSeek')
+  })
+
   it('renders a custom shadcn retry action for errored responses', async () => {
     const wrapper = mount(App)
 

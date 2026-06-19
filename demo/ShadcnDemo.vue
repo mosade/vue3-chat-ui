@@ -2,6 +2,11 @@
 import { computed, ref } from 'vue'
 import { AiChat, AiContent, type AiChatMessage, type AiChatSendContext } from '../src'
 
+type DeepseekStatus = 'idle' | 'ready' | 'connecting' | 'streaming' | 'error' | 'stopped'
+type DeepseekRole = 'user' | 'assistant' | 'system'
+
+const DEEPSEEK_CHAT_COMPLETIONS_URL = 'https://api.deepseek.com/chat/completions'
+
 const messages = ref<AiChatMessage[]>([
   {
     id: 'deepseek-welcome',
@@ -15,10 +20,16 @@ const apiKey = ref('')
 const model = ref('deepseek-v4-flash')
 const temperature = ref(0.7)
 const streamEnabled = ref(true)
+const connectionStatus = ref<DeepseekStatus>('idle')
 const lastError = ref('')
 
 const messageCount = computed(() => messages.value.length)
-const statusLabel = computed(() => (lastError.value ? 'Needs attention' : 'Ready'))
+const statusLabel = computed(() => {
+  if (lastError.value) return 'Needs attention'
+  if (connectionStatus.value === 'connecting') return 'Connecting'
+  if (connectionStatus.value === 'streaming') return 'Streaming'
+  return 'Ready'
+})
 
 const suggestions = [
   {
@@ -35,29 +46,132 @@ const suggestions = [
   }
 ]
 
-const wait = (ms: number, signal: AbortSignal) =>
-  new Promise<void>((resolve, reject) => {
-    const timeout = window.setTimeout(resolve, ms)
-    signal.addEventListener(
-      'abort',
-      () => {
-        window.clearTimeout(timeout)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true }
+const toDeepseekMessages = (sourceMessages: AiChatMessage[], prompt: string) => [
+  ...sourceMessages
+    .filter((message): message is AiChatMessage & { role: DeepseekRole } =>
+      ['user', 'assistant', 'system'].includes(message.role)
     )
-  })
+    .filter((message) => message.content.trim())
+    .map((message) => ({ role: message.role, content: message.content })),
+  { role: 'user' as const, content: prompt }
+]
 
-const sendDeepseekMessage = async ({ prompt, append, setPhase, signal }: AiChatSendContext) => {
-  if (!apiKey.value.trim()) {
+const readDeepseekStream = async (
+  response: Response,
+  append: AiChatSendContext['append']
+) => {
+  const reader = response.body?.getReader()
+
+  if (!reader) {
+    throw new Error('DeepSeek streaming response did not include a readable body.')
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split('\n\n')
+    buffer = events.pop() ?? ''
+
+    for (const event of events) {
+      for (const line of event.split('\n')) {
+        const trimmedLine = line.trim()
+        if (!trimmedLine.startsWith('data:')) continue
+
+        const data = trimmedLine.slice(5).trim()
+        if (!data || data === '[DONE]') continue
+
+        try {
+          const parsed = JSON.parse(data)
+          const delta = parsed?.choices?.[0]?.delta?.content
+          if (delta) append(delta)
+        } catch {
+          // Ignore malformed SSE events and continue reading the stream.
+        }
+      }
+    }
+  }
+}
+
+const sendDeepseekMessage = async ({
+  prompt,
+  messages: contextMessages,
+  append,
+  appendTrace,
+  updateTrace,
+  setPhase,
+  signal
+}: AiChatSendContext) => {
+  const trimmedKey = apiKey.value.trim()
+
+  if (!trimmedKey) {
     lastError.value = 'Enter a DeepSeek API key to send a request.'
+    connectionStatus.value = 'error'
     throw new Error(lastError.value)
   }
 
   lastError.value = ''
-  setPhase('answering')
-  await wait(80, signal)
-  append(`Demo response for: ${prompt}`)
+  connectionStatus.value = 'connecting'
+  setPhase('connecting')
+  const traceId = appendTrace({
+    kind: 'tool',
+    title: 'Calling DeepSeek',
+    content: `Sending request to ${model.value}`,
+    status: 'pending'
+  })
+
+  try {
+    const response = await fetch(DEEPSEEK_CHAT_COMPLETIONS_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${trimmedKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model.value,
+        messages: toDeepseekMessages(contextMessages, prompt),
+        temperature: temperature.value,
+        stream: streamEnabled.value
+      }),
+      signal
+    })
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '')
+      throw new Error(detail || `DeepSeek request failed with status ${response.status}`)
+    }
+
+    setPhase('answering')
+
+    if (!streamEnabled.value) {
+      const data = await response.json()
+      append(data?.choices?.[0]?.message?.content ?? '')
+      connectionStatus.value = 'ready'
+      updateTrace(traceId, { status: 'done', content: 'DeepSeek response received.' })
+      return
+    }
+
+    connectionStatus.value = 'streaming'
+    await readDeepseekStream(response, append)
+    connectionStatus.value = 'ready'
+    updateTrace(traceId, { status: 'done', content: 'DeepSeek stream completed.' })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      connectionStatus.value = 'stopped'
+      updateTrace(traceId, { status: 'error', content: 'Request stopped by the user.' })
+      throw error
+    }
+
+    const message = error instanceof Error ? error.message : 'DeepSeek request failed.'
+    lastError.value = message
+    connectionStatus.value = 'error'
+    updateTrace(traceId, { status: 'error', content: message })
+    throw error
+  }
 }
 </script>
 
