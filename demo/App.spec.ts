@@ -105,6 +105,47 @@ describe('demo App', () => {
     expect(wrapper.text()).toContain('Hello from DeepSeek')
   })
 
+  it('supports non-streaming DeepSeek responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: 'Non-streamed answer' } }]
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+    await wrapper.find('[data-deepseek-api-key]').setValue('sk-test')
+    await wrapper.find('[data-deepseek-stream]').setValue(false)
+    await wrapper.find('textarea').setValue('No stream')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await new Promise((resolve) => setTimeout(resolve, 120))
+
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    expect(request.stream).toBe(false)
+    expect(wrapper.text()).toContain('Non-streamed answer')
+  })
+
+  it('renders provider errors from DeepSeek responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => 'Invalid API key'
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+    await wrapper.find('[data-deepseek-api-key]').setValue('sk-bad')
+    await wrapper.find('textarea').setValue('Will fail')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await new Promise((resolve) => setTimeout(resolve, 120))
+
+    expect(wrapper.text()).toContain('Invalid API key')
+    expect(wrapper.text()).toContain('Retry')
+  })
+
   it('renders a custom shadcn retry action for errored responses', async () => {
     const wrapper = mount(App)
 
