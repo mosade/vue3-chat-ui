@@ -48,6 +48,20 @@ describe('demo App', () => {
     expect(wrapper.text()).toContain('Analyze a decision')
   })
 
+  it('shows a local DeepSeek API key error without calling fetch', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+    await wrapper.find('textarea').setValue('Hello DeepSeek')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await new Promise((resolve) => setTimeout(resolve, 120))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Enter a DeepSeek API key')
+  })
+
   it('renders a custom shadcn retry action for errored responses', async () => {
     const wrapper = mount(App)
 

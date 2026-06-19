@@ -49,6 +49,11 @@ const wait = (ms: number, signal: AbortSignal) =>
   })
 
 const sendDeepseekMessage = async ({ prompt, append, setPhase, signal }: AiChatSendContext) => {
+  if (!apiKey.value.trim()) {
+    lastError.value = 'Enter a DeepSeek API key to send a request.'
+    throw new Error(lastError.value)
+  }
+
   lastError.value = ''
   setPhase('answering')
   await wait(80, signal)
