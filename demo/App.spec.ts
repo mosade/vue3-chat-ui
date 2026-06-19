@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { nextTick } from 'vue'
 import App from './App.vue'
+import ShadcnDemo from './ShadcnDemo.vue'
 
 describe('demo App', () => {
   beforeEach(() => {
@@ -46,6 +47,18 @@ describe('demo App', () => {
     expect(wrapper.text()).toContain('Writing assistant')
     expect(wrapper.text()).toContain('Code review')
     expect(wrapper.text()).toContain('Analyze a decision')
+  })
+
+  it('keeps DeepSeek message actions outside the message bubble', async () => {
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+
+    const messageRow = wrapper.find('.deepseek-message-row')
+    expect(messageRow.exists()).toBe(true)
+    expect(messageRow.find('.deepseek-message').exists()).toBe(true)
+    expect(messageRow.find('.deepseek-message__actions').exists()).toBe(true)
+    expect(messageRow.find('.deepseek-message .deepseek-message__actions').exists()).toBe(false)
   })
 
   it('shows a local DeepSeek API key error without calling fetch', async () => {
@@ -125,6 +138,42 @@ describe('demo App', () => {
     const request = JSON.parse(fetchMock.mock.calls[0][1].body as string)
     expect(request.stream).toBe(false)
     expect(wrapper.text()).toContain('Non-streamed answer')
+  })
+
+  it('renders DeepSeek markdown responses with markdown-it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '# DeepSeek Markdown\n\nA **strong** answer.' } }]
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mount(App)
+
+    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
+    await wrapper.find('[data-deepseek-api-key]').setValue('sk-test')
+    await wrapper.find('[data-deepseek-stream]').setValue(false)
+    await wrapper.find('textarea').setValue('Return markdown')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await new Promise((resolve) => setTimeout(resolve, 120))
+
+    expect(wrapper.find('.deepseek-message__content h1').text()).toBe('DeepSeek Markdown')
+    expect(wrapper.find('.deepseek-message__content strong').text()).toBe('strong')
+  })
+
+  it('shows a DeepSeek loading indicator while waiting for the first response chunk', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)))
+    const wrapper = mount(ShadcnDemo)
+
+    await wrapper.find('[data-deepseek-api-key]').setValue('sk-test')
+    await wrapper.find('textarea').setValue('Wait for first token')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await nextTick()
+
+    expect(wrapper.find('.deepseek-message__loading').exists()).toBe(true)
+    expect(wrapper.find('.deepseek-message__loading').attributes('aria-label')).toBe(
+      'Waiting for DeepSeek response'
+    )
   })
 
   it('renders provider errors from DeepSeek responses', async () => {
@@ -219,9 +268,22 @@ describe('demo App', () => {
     expect(css).toContain('.deepseek-demo__settings')
     expect(css).toContain('.deepseek-demo__suggestions')
     expect(css).toContain('.deepseek-message')
+    expect(css).toContain('.deepseek-message-row')
     expect(css).toContain('.deepseek-composer')
     expect(css).toContain('.deepseek-status')
     expect(css).toContain('.deepseek-button:focus-visible')
+    expect(css).toContain('height: calc(100vh - 40px)')
+    expect(css).toContain('overflow: hidden')
+    expect(css).toContain('.deepseek-demo__chat .ai-chat__messages-wrap')
+    expect(css).toContain('.deepseek-demo__chat .ai-chat__messages')
+    expect(css).toContain('overflow-y: auto')
+    expect(css).toContain('.deepseek-message-row:hover .deepseek-message__actions')
+    expect(css).toContain('.deepseek-message-row:focus-within .deepseek-message__actions')
+    expect(css).toContain('pointer-events: none')
+    expect(css).toContain('.deepseek-markdown h1')
+    expect(css).toContain('.deepseek-markdown pre')
+    expect(css).toContain('.deepseek-markdown blockquote')
+    expect(css).toContain('.deepseek-markdown table')
     expect(css).toContain('box-shadow')
     expect(css).not.toContain('@radix-ui')
     expect(css).not.toContain('shadcn-vue')

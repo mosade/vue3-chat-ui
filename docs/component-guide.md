@@ -14,6 +14,7 @@ import {
   ChatMessageList,
   markdownParser,
   plainTextParser,
+  useAutoScroll,
   useAiChat
 } from 'vue3-ai-chat'
 ```
@@ -29,6 +30,8 @@ import type {
   AiChatRootSlotContext,
   AiChatMessageSlotContext,
   AiChatInputSlotContext,
+  UseAutoScrollOptions,
+  UseAutoScrollReturn,
   UseAiChatOptions,
   UseAiChatReturn
 } from 'vue3-ai-chat'
@@ -186,6 +189,26 @@ interface AiChatInputSlotContext {
 
 因此：如果只想判断“能不能提交”，使用 `canSend`；如果想判断“要不要显示 Stop”，使用 input context
 里的 `active`；如果想禁用消息操作，使用 message context 的 `disabled || active`。
+
+#### 滚动状态
+
+`AiChat` 使用 `useAutoScroll` 维护消息视口滚动状态。默认行为是：
+
+- 用户接近底部时，消息新增、流式内容增长、状态变化或 traces 更新会自动滚动到底部。
+- 用户滚动到较早消息时，不会强行滚动；`showJumpToLatest` 会变为 `true`。
+- 调用 `jumpToLatest()` 会滚动到底部，并恢复底部状态。
+
+这些状态通过 root slot 暴露，方便自定义按钮：
+
+```vue
+<AiChat>
+  <template #header="{ showJumpToLatest, jumpToLatest }">
+    <button v-if="showJumpToLatest" type="button" @click="jumpToLatest()">
+      Latest
+    </button>
+  </template>
+</AiChat>
+```
 
 #### 请求生命周期
 
@@ -399,6 +422,9 @@ export const parser: AiContentParser = {
 | `avatar` | `{ message, index }` | 自定义头像区域。 |
 
 ## ChatMessageList
+
+`ChatMessageList` 是独立消息列表 building block。它不被 `AiChat` 内部依赖，但和 `AiChat`
+复用同一个 `useAutoScroll` 逻辑。
 
 轻量消息列表容器。适合自己组合 `ChatMessage` 或其他消息 UI。
 

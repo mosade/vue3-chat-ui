@@ -6,6 +6,24 @@ import AiContent from './AiContent.vue'
 import type { AiChatMessage } from '../types'
 
 const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0))
+const setScrollMetrics = (
+  element: Element,
+  metrics: { scrollTop: number; scrollHeight: number; clientHeight: number }
+) => {
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    writable: true,
+    value: metrics.scrollTop
+  })
+  Object.defineProperty(element, 'scrollHeight', {
+    configurable: true,
+    value: metrics.scrollHeight
+  })
+  Object.defineProperty(element, 'clientHeight', {
+    configurable: true,
+    value: metrics.clientHeight
+  })
+}
 
 describe('AiChat', () => {
   beforeEach(() => {
@@ -223,6 +241,83 @@ describe('AiChat', () => {
     })
 
     expect(wrapper.find('.jump').exists()).toBe(true)
+  })
+
+  it('auto-scrolls streamed content while the user is near the bottom', async () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        messages: [
+          { id: 'u1', role: 'user', content: 'Prompt', status: 'done' },
+          { id: 'a1', role: 'assistant', content: 'Partial', status: 'streaming' }
+        ]
+      }
+    })
+    const viewport = wrapper.find('.ai-chat__messages').element
+
+    setScrollMetrics(viewport, {
+      scrollTop: 96,
+      scrollHeight: 200,
+      clientHeight: 100
+    })
+
+    await wrapper.setProps({
+      messages: [
+        { id: 'u1', role: 'user', content: 'Prompt', status: 'done' },
+        {
+          id: 'a1',
+          role: 'assistant',
+          content: 'Partial response keeps growing',
+          status: 'streaming'
+        }
+      ]
+    })
+    await nextTick()
+
+    expect(viewport.scrollTop).toBe(200)
+    expect(wrapper.find('.jump').exists()).toBe(false)
+  })
+
+  it('does not auto-scroll streamed content when the user is reading older messages', async () => {
+    const wrapper = mount(AiChat, {
+      props: {
+        messages: [
+          { id: 'u1', role: 'user', content: 'Prompt', status: 'done' },
+          { id: 'a1', role: 'assistant', content: 'Partial', status: 'streaming' }
+        ]
+      },
+      slots: {
+        header:
+          '<template #header="{ showJumpToLatest, jumpToLatest }"><button v-if="showJumpToLatest" class="jump" @click="jumpToLatest()">Latest</button></template>'
+      }
+    })
+    const viewport = wrapper.find('.ai-chat__messages').element
+
+    setScrollMetrics(viewport, {
+      scrollTop: 20,
+      scrollHeight: 300,
+      clientHeight: 100
+    })
+
+    await wrapper.setProps({
+      messages: [
+        { id: 'u1', role: 'user', content: 'Prompt', status: 'done' },
+        {
+          id: 'a1',
+          role: 'assistant',
+          content: 'Partial response keeps growing',
+          status: 'streaming'
+        }
+      ]
+    })
+    await nextTick()
+
+    expect(viewport.scrollTop).toBe(20)
+    expect(wrapper.find('.jump').exists()).toBe(true)
+
+    await wrapper.find('.jump').trigger('click')
+
+    expect(viewport.scrollTop).toBe(300)
+    expect(wrapper.find('.jump').exists()).toBe(false)
   })
 
   it('submits default composer input and supports controlled input', async () => {

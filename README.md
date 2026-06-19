@@ -210,6 +210,10 @@ import { AiContent, ChatComposer, ChatMessage, ChatMessageList } from 'vue3-ai-c
 
 这些组件用于组合自定义 UI，不是 `AiChat` slot 协议的必需项。
 
+`useAutoScroll` 是底层滚动 hook，`AiChat` 和 `ChatMessageList` 都使用它来实现
+“用户在底部时自动跟随、用户阅读旧消息时显示跳转按钮”的行为。需要完全自定义列表 UI 时，
+可以直接使用这个 hook。
+
 ## CSS Presets
 
 包入口不会自动导入 CSS。请按需显式导入：

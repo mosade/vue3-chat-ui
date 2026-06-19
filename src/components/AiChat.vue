@@ -2,6 +2,7 @@
 import { computed, defineComponent, h, nextTick, ref, toRef, type PropType, type VNodeChild } from 'vue'
 import ChatComposer from './ChatComposer.vue'
 import ChatMessage from './ChatMessage.vue'
+import { useAutoScroll } from '../composables/useAutoScroll'
 import { useAiChat } from '../composables/useAiChat'
 import { plainTextParser } from '../parsers'
 import type {
@@ -83,11 +84,6 @@ export default defineComponent({
     })
 
     const composerRef = ref<ChatComposerPublic | null>(null)
-    const viewportRef = ref<HTMLElement | null>(null)
-    const showJumpToLatest = ref(false)
-    const isNearBottom = ref(true)
-    const bottomThreshold = 48
-
     const isBusy = computed(() => props.loading || chat.isActive.value)
     const isActive = computed(() => chat.isActive.value)
     const isDisabled = computed(() => props.disabled)
@@ -112,30 +108,28 @@ export default defineComponent({
     const canSaveEdit = computed(() =>
       Boolean(editDraft.value.trim()) && !isDisabled.value && !isBusy.value
     )
-
-    const updateScrollState = () => {
-      const element = viewportRef.value
-      if (!element) {
-        isNearBottom.value = true
-        showJumpToLatest.value = false
-        return
-      }
-
-      isNearBottom.value =
-        element.scrollHeight - element.scrollTop - element.clientHeight <= bottomThreshold
-      showJumpToLatest.value = !isNearBottom.value
-    }
-
-    const jumpToLatest = () => {
-      const element = viewportRef.value
-      if (!element) {
-        return
-      }
-
-      element.scrollTop = element.scrollHeight
-      isNearBottom.value = true
-      showJumpToLatest.value = false
-    }
+    const autoScrollEnabled = computed(() => props.autoScroll)
+    const {
+      viewportRef,
+      isNearBottom,
+      showJumpToLatest,
+      jumpToLatest,
+      updateScrollState
+    } = useAutoScroll({
+      autoScroll: autoScrollEnabled,
+      watchSource: () =>
+        chat.messages.value
+          .map((message) =>
+            [
+              message.id,
+              message.content,
+              message.status,
+              message.phase,
+              JSON.stringify(message.traces ?? [])
+            ].join(':')
+          )
+          .join('|')
+    })
 
     const submit = async (prompt: string) => {
       emit('send', prompt)

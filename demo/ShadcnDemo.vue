@@ -1,11 +1,30 @@
 <script setup lang="ts">
+import MarkdownIt from 'markdown-it'
 import { computed, ref } from 'vue'
-import { AiChat, AiContent, type AiChatMessage, type AiChatSendContext } from '../src'
+import {
+  AiChat,
+  AiContent,
+  type AiChatMessage,
+  type AiChatSendContext,
+  type AiContentParser
+} from '../src'
 
 type DeepseekStatus = 'idle' | 'ready' | 'connecting' | 'streaming' | 'error' | 'stopped'
 type DeepseekRole = 'user' | 'assistant' | 'system'
 
 const DEEPSEEK_CHAT_COMPLETIONS_URL = 'https://api.deepseek.com/chat/completions'
+const markdownIt = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true
+})
+
+const deepseekContentParser: AiContentParser = {
+  parse: (content) => ({
+    type: 'html',
+    content: markdownIt.render(content)
+  })
+}
 
 const messages = ref<AiChatMessage[]>([
   {
@@ -45,6 +64,18 @@ const suggestions = [
     prompt: 'Compare two implementation options and recommend the pragmatic path.'
   }
 ]
+
+const shouldShowLoading = (context: {
+  message: AiChatMessage
+  status?: AiChatMessage['status']
+  phase?: AiChatMessage['phase']
+}) =>
+  context.message.role === 'assistant' &&
+  !context.message.content &&
+  (context.status === 'pending' ||
+    context.status === 'streaming' ||
+    context.phase === 'queued' ||
+    context.phase === 'connecting')
 
 const toDeepseekMessages = (sourceMessages: AiChatMessage[], prompt: string) => [
   ...sourceMessages
@@ -198,6 +229,7 @@ const sendDeepseekMessage = async ({
           v-model:messages="messages"
           class="ai-chat--shadcn"
           :adapter="{ send: sendDeepseekMessage }"
+          :content-parser="deepseekContentParser"
           auto-focus
         >
           <template #header="{ active, actions }">
@@ -241,12 +273,32 @@ const sendDeepseekMessage = async ({
           </template>
 
           <template #message="context">
-            <article class="deepseek-message" :class="`deepseek-message--${context.message.role}`">
-              <div class="deepseek-message__meta">
-                <strong>{{ context.message.role === 'user' ? 'You' : 'DeepSeek' }}</strong>
-                <span>{{ context.phase ?? context.status ?? 'done' }}</span>
+            <article
+              class="deepseek-message-row"
+              :class="`deepseek-message-row--${context.message.role}`"
+            >
+              <div class="deepseek-message" :class="`deepseek-message--${context.message.role}`">
+                <div class="deepseek-message__meta">
+                  <strong>{{ context.message.role === 'user' ? 'You' : 'DeepSeek' }}</strong>
+                  <span>{{ context.phase ?? context.status ?? 'done' }}</span>
+                </div>
+                <div
+                  v-if="shouldShowLoading(context)"
+                  class="deepseek-message__loading"
+                  aria-label="Waiting for DeepSeek response"
+                >
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <AiContent
+                  v-else
+                  class="deepseek-message__content deepseek-markdown"
+                  :content="context.message.content"
+                  :parser="deepseekContentParser"
+                  :streaming="context.status === 'streaming'"
+                />
               </div>
-              <AiContent class="deepseek-message__content" :content="context.message.content" />
               <div class="deepseek-message__actions">
                 <button
                   v-if="context.message.content"

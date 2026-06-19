@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed } from 'vue'
+import { useAutoScroll } from '../composables/useAutoScroll'
 import type { AiChatMessage } from '../types'
 
 const props = withDefaults(
@@ -12,24 +13,15 @@ const props = withDefaults(
   }
 )
 
-const viewport = ref<HTMLElement | null>(null)
-const showJumpToLatest = ref(false)
-const bottomThreshold = 48
-
-const isNearBottom = (element: HTMLElement) =>
-  element.scrollHeight - element.scrollTop - element.clientHeight <= bottomThreshold
-
-const scrollToLatest = () => {
-  if (!viewport.value) {
-    return
-  }
-
-  viewport.value.scrollTop = viewport.value.scrollHeight
-  showJumpToLatest.value = false
-}
-
-watch(
-  () =>
+const autoScroll = computed(() => props.autoScroll)
+const {
+  viewportRef,
+  showJumpToLatest,
+  jumpToLatest,
+  updateScrollState
+} = useAutoScroll({
+  autoScroll,
+  watchSource: () =>
     props.messages
       .map((message) =>
         [
@@ -39,33 +31,19 @@ watch(
           JSON.stringify(message.traces ?? [])
         ].join(':')
       )
-      .join('|'),
-  async () => {
-    if (!props.autoScroll) {
-      return
-    }
-
-    const shouldScroll = viewport.value ? isNearBottom(viewport.value) : true
-
-    if (!shouldScroll) {
-      showJumpToLatest.value = true
-      return
-    }
-
-    await nextTick()
-    if (!viewport.value) {
-      return
-    }
-
-    scrollToLatest()
-  }
-)
+      .join('|')
+})
 </script>
 
 <template>
   <div class="ai-chat__messages-wrap">
-    <section ref="viewport" class="ai-chat__messages" aria-live="polite">
-      <slot name="list" :messages="messages" :show-jump-to-latest="showJumpToLatest" :jump-to-latest="scrollToLatest">
+    <section
+      ref="viewportRef"
+      class="ai-chat__messages"
+      aria-live="polite"
+      @scroll="updateScrollState"
+    >
+      <slot name="list" :messages="messages" :show-jump-to-latest="showJumpToLatest" :jump-to-latest="jumpToLatest">
         <div v-if="messages.length === 0" class="ai-chat__empty">
           <slot name="empty">
             Start a conversation
@@ -89,7 +67,7 @@ watch(
       class="ai-chat__jump-to-latest ai-chat__button ai-chat__button--secondary"
       type="button"
       aria-label="Jump to latest message"
-      @click="scrollToLatest"
+      @click="jumpToLatest"
     >
       New messages
     </button>
