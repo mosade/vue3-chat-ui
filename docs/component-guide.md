@@ -157,6 +157,104 @@ interface AiChatInputSlotContext {
 }
 ```
 
+### 状态模型
+
+`AiChat` 的状态分为几层：输入草稿、交互禁用、请求生命周期、消息状态、编辑状态和滚动状态。
+自定义 slots 时建议按下面的语义使用，避免把 `active`、`disabled` 和消息 `status` 混在一起。
+
+#### 输入草稿
+
+| 状态 | 来源 | 说明 |
+| --- | --- | --- |
+| `draft` | `input` / `defaultInput` | 当前输入内容。传入 `input` 时为受控模式；否则由内部 `internalDraft` 维护，并以 `defaultInput` 初始化。 |
+| `update:input` | `draft` setter | 每次草稿变化都会触发。受控模式下需要外部同步回写 `input`。 |
+| `canSend` | `Boolean(draft.trim()) && !disabled && !busy` | 仅在有非空草稿、未禁用、且没有 busy 状态时为 `true`。 |
+
+`input` slot 的 `actions.send()` 会读取并 trim 当前 `draft`，通过校验后先清空草稿，再触发发送。
+如果直接调用 root slot 的 `actions.send(prompt)`，需要自己传入 prompt；它不会读取或清空 `draft`。
+
+#### 交互状态
+
+| 状态 | 出现场景 | 说明 |
+| --- | --- | --- |
+| `active` | root/header/empty/footer/message context | 等于 `loading || useAiChat().isActive`，表示当前界面处于 busy 状态。 |
+| `active` | input context / `ChatComposer` | 等于 `useAiChat().isActive`，只表示内部请求正在进行；用于把 Send 按钮切换成 Stop。 |
+| `disabled` | root/message context | 等于 `props.disabled`，表示外部禁用交互。 |
+| `disabled` | input context / 默认 `ChatComposer` | 等于 `props.disabled || loading || isActive`，表示输入框和提交按钮不可用。 |
+| `loading` | `AiChat` prop | 外部 busy 状态。它会禁用发送，但不会创建内部请求，也不会让 input slot 显示 Stop。 |
+| `isActive` | `useAiChat` return | 当前是否存在内部 `activeRequest`。同一时间只支持一个请求。 |
+
+因此：如果只想判断“能不能提交”，使用 `canSend`；如果想判断“要不要显示 Stop”，使用 input context
+里的 `active`；如果想禁用消息操作，使用 message context 的 `disabled || active`。
+
+#### 请求生命周期
+
+`useAiChat` 用内部 `activeRequest` 保存当前请求的 `AbortController` 和 assistant message id。
+请求生命周期如下：
+
+| 操作 | 状态变化 |
+| --- | --- |
+| `send(prompt)` | prompt 为空或已有请求时直接返回；否则追加 user `done` 消息和 assistant `pending` / `queued` 消息。 |
+| `runAssistantRequest` 开始 | 清空 `error`，创建 `activeRequest`，assistant `phase` 变为 `connecting`。 |
+| `context.append(chunk)` | 追加 assistant 内容，并把 assistant `status` 设为 `streaming`、`phase` 设为 `answering`。 |
+| `onSend` 返回字符串 | 如果当前内容非空则 append，否则直接写入 content。 |
+| 正常完成 | assistant `status` 变为 `done`，`phase` 变为 `done`，清除 `activeRequest`。 |
+| `stop()` | abort 当前请求，assistant `status` 变为 `stopped`，`phase` 变为 `stopped`，清除 `activeRequest`。 |
+| 非 abort 错误 | 写入 `error`，assistant content 变为错误信息，`status` 变为 `error`，`phase` 变为 `error`。 |
+| `clear()` | abort 当前请求，清空 `error` 和全部 messages。 |
+
+没有 `adapter` / `sendHandler` 时，assistant 会从 `pending` 直接变成 `done`，不会产生流式内容。
+
+#### 消息状态
+
+`AiChatMessageStatus` 是面向 UI 的粗粒度状态：
+
+| Status | 含义 | 默认 UI 表现 |
+| --- | --- | --- |
+| `pending` | assistant 消息已创建，等待请求或首个 chunk。 | 添加 sr-only 的 pending 提示。 |
+| `streaming` | assistant 正在接收流式内容。 | `AiContent` 以 streaming 模式渲染，并显示 `Streaming`。 |
+| `done` | 消息正常完成。 | 不显示额外状态文本。 |
+| `error` | 请求失败或 adapter 显式更新为错误。 | 显示 `Error`，`canRetry` 可能为 true。 |
+| `stopped` | 用户主动停止或请求被 abort。 | 保留已有内容，并显示 `Stopped`。 |
+
+user 消息在发送和编辑保存后会被标记为 `done`。assistant 的 `retry` 只对 `error` 状态开放；
+`regenerate` 对有前置 user 消息且当前没有内部请求的 assistant 消息开放。
+
+#### 消息阶段
+
+`AiChatMessagePhase` 是更细的过程状态，可用于自定义 loading 文案或步骤条：
+
+| Phase | 典型来源 | 含义 |
+| --- | --- | --- |
+| `queued` | 创建 assistant 消息、retry、regenerate、edit | 已入队，尚未真正调用发送处理。 |
+| `connecting` | `runAssistantRequest` 调用 `onSend` 前 | 正在建立请求。 |
+| `waiting` | adapter 通过 `setPhase` 设置 | 等待模型或后端响应。 |
+| `searching` | adapter 通过 `setPhase` 设置 | 检索资料中。 |
+| `tool_calling` | adapter 通过 `setPhase` 设置 | 调用工具中。 |
+| `reasoning` | adapter 通过 `setPhase` 设置 | 推理或思考中。 |
+| `answering` | `append(chunk)` 或 adapter 设置 | 正在输出回答。 |
+| `done` | 请求正常完成 | 已完成。 |
+| `error` | 非 abort 错误 | 失败。 |
+| `stopped` | `stop()` 或 abort | 已停止。 |
+
+#### 编辑状态
+
+| 状态 | 说明 |
+| --- | --- |
+| `editing` | 当前 message id 等于内部 `editingMessageId`。仅 user 消息可进入编辑。 |
+| `editDraft` | 编辑中的临时文本；进入编辑时复制 user message 的 content。 |
+| `canSaveEdit` | `Boolean(editDraft.trim()) && !disabled && !busy`，且只在当前编辑消息上为 true。 |
+
+保存编辑会替换该 user 消息、截断其后的历史，并追加一个新的 assistant `pending` / `queued` 消息重新请求。
+
+#### Trace 和滚动状态
+
+| 状态 | 说明 |
+| --- | --- |
+| `trace.status` | `pending` / `done` / `error`，表示单个 reasoning/search/tool 步骤状态，不等同于消息请求状态。 |
+| `showJumpToLatest` | 当前滚动位置离底部超过阈值时为 true，用于显示“跳到最新”。 |
+| `isNearBottom` | 当前消息 viewport 是否接近底部。 |
+
 ## AiContent
 
 `AiContent` 是独立内容渲染组件。它只负责把原始字符串渲染成安全文本或 parser 返回的 HTML。
