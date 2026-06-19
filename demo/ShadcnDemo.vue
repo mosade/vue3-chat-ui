@@ -232,16 +232,18 @@ const sendDeepseekMessage = async ({
           :content-parser="deepseekContentParser"
           auto-focus
         >
-          <template #header="{ active, actions }">
+          <template #header="{ active, actions, showJumpToLatest, jumpToLatest }">
             <div class="deepseek-chat-top">
               <div class="deepseek-chat-header">
                 <div>
                   <strong>Assistant</strong>
                   <span>{{ active ? 'Responding' : `${messageCount} messages` }}</span>
                 </div>
-                <button class="deepseek-button deepseek-button--secondary" type="button" @click="actions.clear()">
-                  Clear
-                </button>
+                <div class="deepseek-chat-header__actions">
+                  <button class="deepseek-button deepseek-button--secondary" type="button" @click="actions.clear()">
+                    Clear
+                  </button>
+                </div>
               </div>
               <div class="deepseek-demo__suggestions" aria-label="Prompt suggestions">
                 <button
@@ -256,6 +258,16 @@ const sendDeepseekMessage = async ({
                   {{ suggestion.title }}
                 </button>
               </div>
+              <button
+                v-if="showJumpToLatest"
+                class="deepseek-jump-latest"
+                type="button"
+                data-deepseek-jump-latest
+                aria-label="Scroll to latest message"
+                @click="jumpToLatest()"
+              >
+                ↓
+              </button>
             </div>
           </template>
 

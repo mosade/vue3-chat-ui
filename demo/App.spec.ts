@@ -176,6 +176,36 @@ describe('demo App', () => {
     )
   })
 
+  it('shows a DeepSeek jump-to-bottom button when reading older messages', async () => {
+    const wrapper = mount(ShadcnDemo)
+    const viewport = wrapper.find('.ai-chat__messages').element
+
+    Object.defineProperty(viewport, 'scrollTop', {
+      configurable: true,
+      writable: true,
+      value: 20
+    })
+    Object.defineProperty(viewport, 'scrollHeight', {
+      configurable: true,
+      value: 300
+    })
+    Object.defineProperty(viewport, 'clientHeight', {
+      configurable: true,
+      value: 100
+    })
+
+    await wrapper.find('.ai-chat__messages').trigger('scroll')
+
+    const latest = wrapper.find('[data-deepseek-jump-latest]')
+    expect(latest.exists()).toBe(true)
+    expect(latest.classes()).toContain('deepseek-jump-latest')
+    expect(latest.attributes('aria-label')).toBe('Scroll to latest message')
+
+    await latest.trigger('click')
+
+    expect(viewport.scrollTop).toBe(300)
+  })
+
   it('renders provider errors from DeepSeek responses', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
@@ -277,6 +307,9 @@ describe('demo App', () => {
     expect(css).toContain('.deepseek-demo__chat .ai-chat__messages-wrap')
     expect(css).toContain('.deepseek-demo__chat .ai-chat__messages')
     expect(css).toContain('overflow-y: auto')
+    expect(css).toContain('.deepseek-jump-latest')
+    expect(css).toContain('position: absolute')
+    expect(css).toContain('border-radius: 999px')
     expect(css).toContain('.deepseek-message-row:hover .deepseek-message__actions')
     expect(css).toContain('.deepseek-message-row:focus-within .deepseek-message__actions')
     expect(css).toContain('pointer-events: none')
