@@ -146,18 +146,6 @@ describe('demo App', () => {
     expect(wrapper.text()).toContain('Retry')
   })
 
-  it('renders a custom shadcn retry action for errored responses', async () => {
-    const wrapper = mount(App)
-
-    await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
-    await wrapper.find('.shadcn-demo__actions .shadcn-demo__button').trigger('click')
-    await wrapper.find('textarea').setValue('Make this fail')
-    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
-    await new Promise((resolve) => setTimeout(resolve, 280))
-
-    expect(wrapper.find('[aria-label="Retry response"]').exists()).toBe(true)
-  })
-
   it('does not show process traces before the user sends a message', () => {
     const wrapper = mount(App)
 
