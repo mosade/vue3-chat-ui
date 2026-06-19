@@ -1,4 +1,6 @@
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import AiContent from './AiContent.vue'
 import type { AiContentParser } from '../types'
@@ -38,6 +40,50 @@ describe('AiContent', () => {
     })
 
     expect(wrapper.find('strong').text()).toBe('Hello')
+  })
+
+  it('marks html parser output so block wrappers do not affect markdown layout', () => {
+    const parser: AiContentParser = {
+      parse: (content) => ({
+        type: 'html',
+        content: `<p>${content}</p>`
+      })
+    }
+
+    const wrapper = mount(AiContent, {
+      props: {
+        content: 'First paragraph\n\nSecond paragraph',
+        parser
+      }
+    })
+
+    expect(wrapper.classes()).toContain('ai-content--html')
+    expect(wrapper.findAll('.ai-content__block')).toHaveLength(2)
+    expect(wrapper.findAll('.ai-content__block').every((block) => block.classes().includes('ai-content__block--html'))).toBe(
+      true
+    )
+  })
+
+  it('keeps plain text blocks as layout blocks', () => {
+    const wrapper = mount(AiContent, {
+      props: {
+        content: 'First paragraph\n\nSecond paragraph'
+      }
+    })
+
+    expect(wrapper.classes()).not.toContain('ai-content--html')
+    expect(wrapper.findAll('.ai-content__block').some((block) => block.classes().includes('ai-content__block--html'))).toBe(
+      false
+    )
+  })
+
+  it('styles html blocks without adding AiContent spacing around markdown nodes', () => {
+    const css = readFileSync(resolve(__dirname, '../style.css'), 'utf8')
+
+    expect(css).toContain('.ai-content--html')
+    expect(css).toContain('white-space: normal')
+    expect(css).toContain('.ai-content--html > .ai-content__block--html')
+    expect(css).toContain('display: contents')
   })
 
   it('passes block context to the parser', () => {

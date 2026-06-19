@@ -305,7 +305,7 @@ const sendDeepseekMessage = async ({
                 </div>
                 <AiContent
                   v-else
-                  class="deepseek-message__content deepseek-markdown"
+                  class="deepseek-message__content markdown-body"
                   :content="context.message.content"
                   :parser="deepseekContentParser"
                   :streaming="context.status === 'streaming'"

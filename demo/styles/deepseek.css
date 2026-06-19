@@ -1,0 +1,422 @@
+.deepseek-demo {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  height: calc(100vh - 40px);
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 68px;
+  color: #09090b;
+  background:
+    radial-gradient(circle at top left, rgb(244 244 245 / 86%), transparent 34rem),
+    #ffffff;
+}
+
+.deepseek-demo__hero,
+.deepseek-demo__layout {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.deepseek-demo__hero {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 0;
+}
+
+.deepseek-demo__hero h1 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.deepseek-demo__hero p {
+  max-width: 620px;
+  margin: 8px 0 0;
+  color: #71717a;
+  line-height: 1.55;
+}
+
+.deepseek-demo__eyebrow,
+.deepseek-demo__label {
+  margin: 0 0 8px;
+  color: #52525b;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.deepseek-demo__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  min-height: 0;
+  gap: 18px;
+}
+
+.deepseek-demo__chat {
+  min-width: 0;
+  min-height: 0;
+}
+
+.deepseek-demo__chat .ai-chat--shadcn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  background: rgb(255 255 255 / 92%);
+  border: 0;
+  border-radius: 8px;
+  box-shadow:
+    0 18px 48px rgb(24 24 27 / 8%),
+    0 2px 8px rgb(24 24 27 / 6%);
+}
+
+.deepseek-demo__chat .ai-chat__messages-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.deepseek-demo__chat .ai-chat__messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.deepseek-demo__chat .ai-chat > :first-child,
+.deepseek-demo__chat .ai-chat > :last-child {
+  flex: 0 0 auto;
+}
+
+.deepseek-demo__settings {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.deepseek-demo__panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: #f4f4f5;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%);
+}
+
+.deepseek-chat-header,
+.deepseek-message__meta,
+.deepseek-status,
+.deepseek-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.deepseek-chat-top {
+  display: grid;
+  gap: 12px;
+}
+
+.deepseek-jump-latest {
+  position: absolute;
+  right: 18px;
+  bottom: 86px;
+  z-index: 4;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: #fafafa;
+  background: #18181b;
+  border: 0;
+  border-radius: 999px;
+  box-shadow:
+    0 14px 30px rgb(24 24 27 / 18%),
+    0 2px 8px rgb(24 24 27 / 12%);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.deepseek-jump-latest:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.deepseek-chat-header {
+  justify-content: space-between;
+}
+
+.deepseek-chat-header__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.deepseek-chat-header div,
+.deepseek-field {
+  display: grid;
+  gap: 6px;
+}
+
+.deepseek-chat-header span,
+.deepseek-message__meta span,
+.deepseek-field span,
+.deepseek-check,
+.deepseek-status span {
+  color: #71717a;
+  font-size: 12px;
+}
+
+.deepseek-status {
+  justify-content: flex-end;
+  min-height: 36px;
+  padding: 0 12px;
+  background: #f4f4f5;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.deepseek-status[data-state="error"] {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.deepseek-demo__suggestions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.deepseek-empty {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  min-height: 180px;
+  place-content: center;
+}
+
+.deepseek-suggestion,
+.deepseek-button {
+  min-height: 34px;
+  padding: 0 12px;
+  color: #18181b;
+  background: #f4f4f5;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.deepseek-button--primary {
+  color: #fafafa;
+  background: #18181b;
+}
+
+.deepseek-button--secondary {
+  background: #f4f4f5;
+}
+
+.deepseek-button--ghost {
+  color: #71717a;
+  background: transparent;
+}
+
+.deepseek-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.deepseek-button:focus-visible,
+.deepseek-suggestion:focus-visible,
+.deepseek-field input:focus-visible,
+.deepseek-field select:focus-visible,
+.deepseek-composer textarea:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.deepseek-field input,
+.deepseek-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  color: #18181b;
+  background: #ffffff;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgb(24 24 27 / 7%);
+}
+
+.deepseek-message-row {
+  display: grid;
+  gap: 6px;
+  max-width: min(82%, 720px);
+}
+
+.deepseek-message-row--user {
+  justify-items: end;
+  align-self: flex-end;
+}
+
+.deepseek-message-row--assistant,
+.deepseek-message-row--system,
+.deepseek-message-row--error {
+  justify-items: start;
+  align-self: flex-start;
+}
+
+.deepseek-message {
+  display: grid;
+  gap: 7px;
+  padding: 12px 14px;
+  background: #f4f4f5;
+  border-radius: 8px;
+}
+
+.deepseek-message--user {
+  color: #fafafa;
+  background: #18181b;
+}
+
+.deepseek-message--user .deepseek-message__meta span {
+  color: rgb(250 250 250 / 70%);
+}
+
+.deepseek-message__actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  transform: translateY(-2px);
+}
+
+.deepseek-message-row:hover .deepseek-message__actions,
+.deepseek-message-row:focus-within .deepseek-message__actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.deepseek-message__content {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.deepseek-message__loading {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-height: 24px;
+}
+
+.deepseek-message__loading span {
+  width: 6px;
+  height: 6px;
+  background: #71717a;
+  border-radius: 999px;
+  animation: deepseek-loading-pulse 960ms ease-in-out infinite;
+}
+
+.deepseek-message__loading span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.deepseek-message__loading span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+@keyframes deepseek-loading-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.deepseek-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin: 0 14px 14px;
+  padding: 10px;
+  background: #f4f4f5;
+  border-radius: 8px;
+  box-shadow: 0 14px 36px rgb(24 24 27 / 12%);
+}
+
+.deepseek-composer textarea {
+  min-height: 44px;
+  padding: 12px 14px;
+  color: #18181b;
+  background: #ffffff;
+  border: 0;
+  border-radius: 8px;
+  resize: vertical;
+  outline: 0;
+  line-height: 1.45;
+}
+
+.deepseek-error {
+  margin: 0;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 860px) {
+  .deepseek-demo {
+    height: calc(100vh - 28px);
+    min-height: 0;
+    padding-top: 58px;
+  }
+
+  .deepseek-demo__hero,
+  .deepseek-demo__layout {
+    width: 100%;
+  }
+
+  .deepseek-demo__hero {
+    flex-direction: column;
+  }
+
+  .deepseek-demo__layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .deepseek-demo__chat .ai-chat--shadcn {
+    min-height: 0;
+  }
+
+  .deepseek-demo__settings {
+    order: -1;
+    max-height: 220px;
+  }
+
+  .deepseek-composer {
+    grid-template-columns: 1fr;
+    margin: 0 10px 10px;
+  }
+}

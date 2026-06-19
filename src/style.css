@@ -111,8 +111,18 @@
   white-space: pre-wrap;
 }
 
+.ai-content--html {
+  display: block;
+  gap: 0;
+  white-space: normal;
+}
+
 .ai-content__block {
   min-width: 0;
+}
+
+.ai-content--html > .ai-content__block--html {
+  display: contents;
 }
 
 .ai-content__html {

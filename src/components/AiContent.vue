@@ -66,8 +66,18 @@ export default defineComponent({
       return parsed
     }
 
-    const renderBlock = (block: AiContentBlock) => {
-      const parsed = parseBlock(block)
+    const parsedBlocks = computed(() =>
+      blocks.value.map((block) => ({
+        block,
+        parsed: parseBlock(block)
+      }))
+    )
+
+    const rendersHtml = computed(() =>
+      parsedBlocks.value.some(({ parsed }) => parsed.type === 'html')
+    )
+
+    const renderBlock = ({ block, parsed }: { block: AiContentBlock; parsed: AiContentParsed }) => {
       const children =
         parsed.type === 'html'
           ? [h('span', { class: 'ai-content__html', innerHTML: parsed.content })]
@@ -77,7 +87,11 @@ export default defineComponent({
         'div',
         {
           key: block.id,
-          class: ['ai-content__block', `ai-content__block--${block.kind}`],
+          class: [
+            'ai-content__block',
+            `ai-content__block--${block.kind}`,
+            parsed.type === 'html' ? 'ai-content__block--html' : ''
+          ],
           'data-ai-content-block': block.id
         },
         children
@@ -88,10 +102,10 @@ export default defineComponent({
       h(
         'div',
         {
-          class: 'ai-content',
+          class: ['ai-content', rendersHtml.value ? 'ai-content--html' : ''],
           'data-streaming': props.streaming ? 'true' : 'false'
         },
-        blocks.value.map(renderBlock)
+        parsedBlocks.value.map(renderBlock)
       )
   }
 })
