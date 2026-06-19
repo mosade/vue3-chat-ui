@@ -97,7 +97,9 @@ Tests are updated before implementation to cover the new behavior:
 
 The selected visual direction is minimal assistant:
 
-- White/neutral shadcn-inspired surface.
+- White/neutral shadcn/ui-inspired surface, implemented with local Vue markup and CSS only.
 - Chat-first layout with restrained controls.
 - Compact settings panel that supports API connection without turning the product into a playground.
 - Mobile layout stacks settings below/above the chat while keeping the composer usable.
+
+The demo must not install or import the shadcn/ui component library. The visual style should be recreated through existing `AiChat` slots and local CSS: neutral backgrounds, compact controls, 6-8px radii, clear focus states, muted secondary text, and understated badges/buttons. Avoid using fine hairline borders as the primary visual structure; prefer soft surface contrast, subtle shadows, filled controls, and spacing to separate regions.
