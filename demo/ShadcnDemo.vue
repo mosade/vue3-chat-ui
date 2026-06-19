@@ -1,31 +1,39 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AiChat, type AiChatMessage, type AiChatSendContext } from '../src'
+import { AiChat, AiContent, type AiChatMessage, type AiChatSendContext } from '../src'
 
-const shadcnMessages = ref<AiChatMessage[]>([
+const messages = ref<AiChatMessage[]>([
   {
-    id: 'shadcn-welcome',
+    id: 'deepseek-welcome',
     role: 'assistant',
     content:
-      'This variant keeps the same AiChat state orchestration and restyles it with slots plus the shadcn CSS preset.',
-    status: 'done'
-  },
-  {
-    id: 'shadcn-user',
-    role: 'user',
-    content: 'Show me how the component adapts to another design system.',
-    status: 'done'
-  },
-  {
-    id: 'shadcn-assistant',
-    role: 'assistant',
-    content:
-      'The root slots own header, messages, input, and footer. Traces describe process; sources describe final references.',
+      'Hi, I am your DeepSeek assistant. Add an API key, pick a model, and send a prompt when you are ready.',
     status: 'done'
   }
 ])
-const shadcnFailNext = ref(false)
-const shadcnMessageCount = computed(() => shadcnMessages.value.length)
+const apiKey = ref('')
+const model = ref('deepseek-v4-flash')
+const temperature = ref(0.7)
+const streamEnabled = ref(true)
+const lastError = ref('')
+
+const messageCount = computed(() => messages.value.length)
+const statusLabel = computed(() => (lastError.value ? 'Needs attention' : 'Ready'))
+
+const suggestions = [
+  {
+    title: 'Writing assistant',
+    prompt: 'Rewrite this product update so it is clear, concise, and customer-friendly.'
+  },
+  {
+    title: 'Code review',
+    prompt: 'Review this Vue component for bugs, edge cases, and maintainability issues.'
+  },
+  {
+    title: 'Analyze a decision',
+    prompt: 'Compare two implementation options and recommend the pragmatic path.'
+  }
+]
 
 const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -40,130 +48,195 @@ const wait = (ms: number, signal: AbortSignal) =>
     )
   })
 
-const sendShadcnMessage = async ({
-  prompt,
-  append,
-  appendTrace,
-  updateTrace,
-  setPhase,
-  signal
-}: AiChatSendContext) => {
-  if (shadcnFailNext.value) {
-    shadcnFailNext.value = false
-    await wait(240, signal)
-    throw new Error('The shadcn-style adapter returned a demo error.')
-  }
-
-  setPhase('tool_calling')
-  const traceId = appendTrace({
-    kind: 'tool',
-    title: 'Reading workspace',
-    content: 'Inspecting package exports, demo state, and style tokens.',
-    status: 'pending',
-    items: ['src/index.ts', 'demo/style.css']
-  })
-  await wait(220, signal)
-  updateTrace(traceId, {
-    content: 'Workspace inspection complete. No external provider is required.',
-    status: 'done'
-  })
-
+const sendDeepseekMessage = async ({ prompt, append, setPhase, signal }: AiChatSendContext) => {
+  lastError.value = ''
   setPhase('answering')
-  const chunks = [
-    `Prompt received: ${prompt}. `,
-    'This view uses a restrained neutral palette, thin borders, compact spacing, ',
-    'and slot-rendered action buttons to demonstrate custom UI control.'
-  ]
-
-  for (const chunk of chunks) {
-    await wait(220, signal)
-    append(chunk)
-  }
+  await wait(80, signal)
+  append(`Demo response for: ${prompt}`)
 }
 </script>
 
 <template>
-  <section class="shadcn-demo">
-    <header class="shadcn-demo__topbar">
+  <section class="deepseek-demo">
+    <section class="deepseek-demo__hero">
       <div>
-        <p class="shadcn-demo__eyebrow">vue3-ai-chat preset</p>
-        <h1>shadcn preset</h1>
+        <p class="deepseek-demo__eyebrow">shadcn/ui style, local CSS</p>
+        <h1>DeepSeek Assistant</h1>
         <p>
-          A plain preset view using the exported base building blocks and shadcn CSS preset.
+          A minimal chatbot surface for direct DeepSeek API experiments in the browser.
         </p>
       </div>
 
-      <div class="shadcn-demo__actions">
-        <span class="shadcn-demo__badge">Mock adapter</span>
-        <button type="button" class="shadcn-demo__button" @click="shadcnFailNext = true">
-          Fail next
-        </button>
+      <div class="deepseek-status" :data-state="lastError ? 'error' : 'ready'">
+        <span>{{ statusLabel }}</span>
+        <strong>{{ model }}</strong>
       </div>
-    </header>
+    </section>
 
-    <section class="shadcn-demo__grid">
-      <aside class="shadcn-demo__sidebar" aria-label="Conversation metadata">
-        <div class="shadcn-demo__section">
-          <span class="shadcn-demo__label">Conversation</span>
-          <strong>Component styling audit</strong>
-          <p>
-            This isolated demo keeps custom markup minimal so the preset styles remain visible.
-          </p>
+    <section class="deepseek-demo__layout">
+      <section class="deepseek-demo__chat">
+        <div class="deepseek-demo__suggestions" aria-label="Prompt suggestions">
+          <button
+            v-for="suggestion in suggestions"
+            :key="suggestion.title"
+            class="deepseek-suggestion"
+            type="button"
+            data-deepseek-suggestion
+            @click="messages.push({
+              id: `suggestion-${Date.now()}`,
+              role: 'user',
+              content: suggestion.prompt,
+              status: 'done'
+            })"
+          >
+            {{ suggestion.title }}
+          </button>
         </div>
-
-        <div class="shadcn-demo__metrics">
-          <div>
-            <span>Messages</span>
-            <strong>{{ shadcnMessageCount }}</strong>
-          </div>
-          <div>
-            <span>Status</span>
-            <strong>{{ shadcnFailNext ? 'Fail armed' : 'Ready' }}</strong>
-          </div>
-        </div>
-
-        <pre class="shadcn-demo__state">{{
-          JSON.stringify(shadcnMessages.slice(-4), null, 2)
-        }}</pre>
-      </aside>
-
-      <section class="shadcn-demo__chat">
         <AiChat
-          v-model:messages="shadcnMessages"
+          v-model:messages="messages"
           class="ai-chat--shadcn"
-          :adapter="{ send: sendShadcnMessage }"
+          :adapter="{ send: sendDeepseekMessage }"
+          auto-focus
         >
           <template #header="{ active, actions }">
-            <div class="shadcn-chat-header">
+            <div class="deepseek-chat-header">
               <div>
-                <strong>Design System Assistant</strong>
-                <span>{{ active ? 'Streaming response' : 'Ready for prompt' }}</span>
+                <strong>Assistant</strong>
+                <span>{{ active ? 'Responding' : `${messageCount} messages` }}</span>
               </div>
-              <div class="shadcn-demo__actions">
-                <span class="shadcn-demo__badge" :data-active="active">
-                  {{ active ? 'Live' : 'Idle' }}
-                </span>
-                <button class="shadcn-demo__button shadcn-demo__button--ghost" type="button" @click="actions.clear()">
-                  Clear
-                </button>
-              </div>
+              <button class="deepseek-button deepseek-button--secondary" type="button" @click="actions.clear()">
+                Clear
+              </button>
             </div>
           </template>
 
           <template #empty="{ actions }">
-            <div class="shadcn-empty">
-              <strong>No messages</strong>
-              <button class="shadcn-demo__button" type="button" @click="actions.send('Audit this UI')">
-                Start audit
+            <div class="deepseek-empty">
+              <strong>What can I help with?</strong>
+              <button
+                class="deepseek-suggestion"
+                type="button"
+                @click="actions.send(suggestions[0].prompt)"
+              >
+                {{ suggestions[0].title }}
+              </button>
+            </div>
+          </template>
+
+          <template #message="context">
+            <article class="deepseek-message" :class="`deepseek-message--${context.message.role}`">
+              <div class="deepseek-message__meta">
+                <strong>{{ context.message.role === 'user' ? 'You' : 'DeepSeek' }}</strong>
+                <span>{{ context.phase ?? context.status ?? 'done' }}</span>
+              </div>
+              <AiContent class="deepseek-message__content" :content="context.message.content" />
+              <div class="deepseek-message__actions">
+                <button
+                  v-if="context.message.content"
+                  class="deepseek-button deepseek-button--ghost"
+                  type="button"
+                  @click="context.actions.copy()"
+                >
+                  Copy
+                </button>
+                <button
+                  v-if="context.canRetry"
+                  class="deepseek-button deepseek-button--ghost"
+                  type="button"
+                  aria-label="Retry response"
+                  @click="context.actions.retry()"
+                >
+                  Retry
+                </button>
+                <button
+                  v-if="context.canRegenerate"
+                  class="deepseek-button deepseek-button--ghost"
+                  type="button"
+                  @click="context.actions.regenerate()"
+                >
+                  Regenerate
+                </button>
+              </div>
+            </article>
+          </template>
+
+          <template #input="{ draft, canSend, active, actions }">
+            <div class="deepseek-composer">
+              <textarea
+                aria-label="Message prompt"
+                rows="1"
+                :value="draft"
+                :disabled="active"
+                placeholder="Message DeepSeek..."
+                @input="actions.updateDraft(($event.target as HTMLTextAreaElement).value)"
+                @keydown.enter.exact.prevent="actions.send()"
+              />
+              <button
+                v-if="active"
+                class="deepseek-button deepseek-button--primary"
+                type="button"
+                aria-label="Stop response"
+                @click="actions.stop()"
+              >
+                Stop
+              </button>
+              <button
+                v-else
+                class="deepseek-button deepseek-button--primary"
+                type="button"
+                aria-label="Send message"
+                :disabled="!canSend"
+                @click="actions.send()"
+              >
+                Send
               </button>
             </div>
           </template>
 
           <template #footer>
-            Pure preset surface with default messages, actions, and composer.
+            Browser-side key entry is for local demos only.
           </template>
         </AiChat>
       </section>
+
+      <aside class="deepseek-demo__settings" aria-label="DeepSeek settings">
+        <div class="deepseek-demo__panel">
+          <span class="deepseek-demo__label">Connection</span>
+          <label class="deepseek-field">
+            <span>API key</span>
+            <input
+              v-model="apiKey"
+              data-deepseek-api-key
+              type="password"
+              placeholder="sk-..."
+              autocomplete="off"
+            />
+          </label>
+          <label class="deepseek-field">
+            <span>Model</span>
+            <select v-model="model" data-deepseek-model>
+              <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+              <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+            </select>
+          </label>
+          <label class="deepseek-field">
+            <span>Temperature {{ temperature.toFixed(1) }}</span>
+            <input
+              v-model.number="temperature"
+              data-deepseek-temperature
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+            />
+          </label>
+          <label class="deepseek-check">
+            <input v-model="streamEnabled" data-deepseek-stream type="checkbox" />
+            <span>Stream responses</span>
+          </label>
+          <p v-if="lastError" class="deepseek-error">{{ lastError }}</p>
+        </div>
+      </aside>
     </section>
   </section>
 </template>

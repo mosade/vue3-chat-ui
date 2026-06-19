@@ -18,7 +18,7 @@ describe('demo App', () => {
     vi.useRealTimers()
   })
 
-  it('renders the Google-style default demo and switches to the shadcn preset demo', async () => {
+  it('renders the Google-style default demo and switches to the DeepSeek chatbot demo', async () => {
     const wrapper = mount(App)
 
     expect(wrapper.text()).toContain('Ask AiChat')
@@ -27,20 +27,25 @@ describe('demo App', () => {
 
     await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
 
-    expect(wrapper.text()).toContain('shadcn preset')
-    expect(wrapper.find('.shadcn-demo .ai-chat').exists()).toBe(true)
+    expect(wrapper.text()).toContain('DeepSeek Assistant')
+    expect(wrapper.find('.deepseek-demo .ai-chat').exists()).toBe(true)
   })
 
-  it('renders the shadcn demo with the preset/default chat building blocks', async () => {
+  it('renders the DeepSeek assistant product controls and prompt suggestions', async () => {
     const wrapper = mount(App)
 
     await wrapper.find('[data-demo-variant="shadcn"]').trigger('click')
 
-    expect(wrapper.find('.ai-chat--shadcn').exists()).toBe(true)
-    expect(wrapper.find('.ai-chat__message').exists()).toBe(true)
-    expect(wrapper.find('.ai-chat__composer').exists()).toBe(true)
-    expect(wrapper.find('.shadcn-message').exists()).toBe(false)
-    expect(wrapper.find('.shadcn-composer').exists()).toBe(false)
+    expect(wrapper.find('.deepseek-demo').exists()).toBe(true)
+    expect(wrapper.find('[data-deepseek-api-key]').exists()).toBe(true)
+    expect(wrapper.find('[data-deepseek-model]').exists()).toBe(true)
+    expect(wrapper.find('[data-deepseek-temperature]').exists()).toBe(true)
+    expect(wrapper.find('[data-deepseek-stream]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-deepseek-suggestion]')).toHaveLength(3)
+    expect(wrapper.text()).toContain('shadcn/ui style')
+    expect(wrapper.text()).toContain('Writing assistant')
+    expect(wrapper.text()).toContain('Code review')
+    expect(wrapper.text()).toContain('Analyze a decision')
   })
 
   it('renders a custom shadcn retry action for errored responses', async () => {
