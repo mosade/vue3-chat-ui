@@ -1,9 +1,11 @@
 export type {
   AiContentBlock,
   AiContentBlockKind,
+  AiContentInlineWidget,
   AiContentParsed,
   AiContentParser,
   AiContentParserContext,
+  AiContentWidgetResolved,
   AiChatAdapter,
   AiChatContentParser,
   AiChatContentParserContext,
@@ -25,13 +27,14 @@ export type {
   AiChatSource,
   AiChatTrace,
   AiChatTraceKind,
-  AiChatTraceStatus
+  AiChatTraceStatus,
+  CreateMarkdownVNodeParserOptions
 } from './types'
 export { useAiChat } from './composables/useAiChat'
 export type { UseAiChatOptions, UseAiChatReturn } from './composables/useAiChat'
 export { useAutoScroll } from './composables/useAutoScroll'
 export type { UseAutoScrollOptions, UseAutoScrollReturn } from './composables/useAutoScroll'
-export { markdownParser, plainTextParser } from './parsers'
+export { createMarkdownVNodeParser, markdownParser, plainTextParser } from './parsers'
 export { default as AiContent } from './components/AiContent.vue'
 export { default as AiChat } from './components/AiChat.vue'
 export { default as ChatComposer } from './components/ChatComposer.vue'

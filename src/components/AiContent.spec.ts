@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { defineComponent, h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import AiContent from './AiContent.vue'
 import type { AiContentParser } from '../types'
@@ -40,6 +41,37 @@ describe('AiContent', () => {
     })
 
     expect(wrapper.find('strong').text()).toBe('Hello')
+  })
+
+  it('renders parsed Vue nodes from an external parser', () => {
+    const InlineBadge = defineComponent({
+      name: 'InlineBadge',
+      props: {
+        label: {
+          type: String,
+          required: true
+        }
+      },
+      setup(props) {
+        return () => h('button', { class: 'inline-badge', type: 'button' }, props.label)
+      }
+    })
+    const parser: AiContentParser = {
+      parse: (content) => ({
+        type: 'vnode',
+        content: ['Before ', h(InlineBadge, { label: content }), ' after']
+      })
+    }
+
+    const wrapper = mount(AiContent, {
+      props: {
+        content: 'Citation',
+        parser
+      }
+    })
+
+    expect(wrapper.find('.inline-badge').text()).toBe('Citation')
+    expect(wrapper.text()).toContain('Before Citation after')
   })
 
   it('marks html parser output so block wrappers do not affect markdown layout', () => {
@@ -112,6 +144,44 @@ describe('AiContent', () => {
       stable: false,
       kind: 'paragraph'
     })
+  })
+
+  it('passes message context to the parser when provided', () => {
+    const parse = vi.fn<AiContentParser['parse']>((content) => ({
+      type: 'text',
+      content
+    }))
+    const message = {
+      id: 'a1',
+      role: 'assistant' as const,
+      content: 'Cited [[critten 1]]',
+      sources: [
+        {
+          id: '1',
+          index: 1,
+          title: 'Reference',
+          snippet: 'Reference snippet'
+        }
+      ]
+    }
+
+    mount(AiContent, {
+      props: {
+        content: message.content,
+        message,
+        parser: { parse }
+      }
+    })
+
+    expect(parse).toHaveBeenCalledWith(
+      'Cited [[critten 1]]',
+      expect.objectContaining({
+        streaming: false,
+        stable: true,
+        kind: 'paragraph',
+        message
+      })
+    )
   })
 
   it('caches parsed stable blocks while only reparsing the live block', async () => {

@@ -1,3 +1,5 @@
+import type { VNodeChild } from 'vue'
+
 export type AiChatRole = 'user' | 'assistant' | 'system' | 'error'
 
 export type AiChatMessageStatus = 'pending' | 'streaming' | 'done' | 'error' | 'stopped'
@@ -25,6 +27,15 @@ export type AiContentParsed =
       type: 'html'
       content: string
     }
+  | {
+      type: 'vnode'
+      content: VNodeChild
+    }
+
+export interface AiContentWidgetResolved {
+  key?: string | number
+  props?: Record<string, unknown>
+}
 
 export interface AiContentParserContext {
   streaming: boolean
@@ -36,6 +47,21 @@ export interface AiContentParserContext {
 
 export interface AiContentParser {
   parse: (content: string, context: AiContentParserContext) => AiContentParsed
+}
+
+export interface AiContentInlineWidget {
+  name: string
+  pattern: RegExp
+  resolve: (
+    match: RegExpExecArray,
+    context: AiContentParserContext
+  ) => AiContentWidgetResolved | null | undefined
+  render: (props: Record<string, unknown>, context: AiContentParserContext) => VNodeChild
+  fallback?: (match: RegExpExecArray, context: AiContentParserContext) => VNodeChild
+}
+
+export interface CreateMarkdownVNodeParserOptions {
+  inlineWidgets?: AiContentInlineWidget[]
 }
 
 export interface AiContentBlock {

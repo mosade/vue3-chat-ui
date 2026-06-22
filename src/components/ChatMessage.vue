@@ -106,6 +106,7 @@ const tracesSummary = (traces: AiChatTrace[]) => {
         <AiContent
           :content="message.content"
           :parser="contentParser"
+          :message="message"
           :streaming="messageStatus === 'streaming'"
         />
         <span v-if="messageStatus === 'pending'" class="ai-chat__sr-only" aria-live="polite">

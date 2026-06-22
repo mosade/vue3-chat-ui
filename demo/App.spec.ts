@@ -269,6 +269,8 @@ describe('demo App', () => {
 
     expect(wrapper.text()).toContain('Clean white demo')
     expect(wrapper.text()).toContain('AiContent rendering')
+    expect(wrapper.find('.demo-citation').text()).toBe('[1]')
+    expect(wrapper.find('.demo-citation-card').text()).toContain('Example citation rendered from message.sources.')
     expect(wrapper.find('.demo-message-text.ai-content').exists()).toBe(true)
     expect(wrapper.find('.demo-sources').exists()).toBe(true)
     expect(wrapper.text()).toContain('Vue API Reference')

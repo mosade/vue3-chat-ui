@@ -1,8 +1,8 @@
 <script lang="ts">
-import { computed, defineComponent, h, watch, type PropType } from 'vue'
+import { computed, defineComponent, h, watch, type PropType, type VNodeChild } from 'vue'
 import { createAiContentBlocks } from '../content/blocks'
 import { plainTextParser } from '../parsers'
-import type { AiContentBlock, AiContentParsed, AiContentParser } from '../types'
+import type { AiChatMessage, AiContentBlock, AiContentParsed, AiContentParser } from '../types'
 
 export default defineComponent({
   name: 'AiContent',
@@ -18,6 +18,10 @@ export default defineComponent({
     streaming: {
       type: Boolean,
       default: false
+    },
+    message: {
+      type: Object as PropType<AiChatMessage | undefined>,
+      default: undefined
     }
   },
   setup(props) {
@@ -56,7 +60,8 @@ export default defineComponent({
         streaming: props.streaming,
         blockId: block.id,
         stable: block.stable,
-        kind: block.kind
+        kind: block.kind,
+        message: props.message
       })
 
       if (block.stable) {
@@ -77,10 +82,20 @@ export default defineComponent({
       parsedBlocks.value.some(({ parsed }) => parsed.type === 'html')
     )
 
+    const normalizeVNodeContent = (content: VNodeChild) => {
+      if (content === null || content === undefined || typeof content === 'boolean') {
+        return []
+      }
+
+      return Array.isArray(content) ? content : [content]
+    }
+
     const renderBlock = ({ block, parsed }: { block: AiContentBlock; parsed: AiContentParsed }) => {
       const children =
         parsed.type === 'html'
           ? [h('span', { class: 'ai-content__html', innerHTML: parsed.content })]
+          : parsed.type === 'vnode'
+            ? normalizeVNodeContent(parsed.content)
           : parsed.content
 
       return h(

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it'
-import { computed, ref } from 'vue'
+import { computed, h, ref } from 'vue'
 import {
   AiChat,
   AiContent,
+  createMarkdownVNodeParser,
   type AiChatMessage,
   type AiChatSendContext,
   type AiContentParser
@@ -21,11 +21,12 @@ const messages = ref<AiChatMessage[]>([
     id: 'welcome',
     role: 'assistant',
     content:
-      '**AiContent rendering** is enabled through the contentParser prop. Completed blocks keep stable keys while streaming, including image blocks like ![Vue](https://vuejs.org/logo.svg).',
+      '**AiContent rendering** is enabled through the contentParser prop. Inline widgets can render Vue components from controlled markers like [[critten 1]]. Completed blocks keep stable keys while streaming, including image blocks like ![Vue](https://vuejs.org/logo.svg).',
     status: 'done',
     sources: [
       {
         id: 'vue-api-reference',
+        index: 1,
         title: 'Vue API Reference',
         url: 'https://vuejs.org/api/',
         snippet: 'Example citation rendered from message.sources.'
@@ -36,18 +37,92 @@ const messages = ref<AiChatMessage[]>([
 const failNext = ref(false)
 const markdownStreamDelaysMs = [45, 120, 70, 180, 35, 95, 260, 55]
 const markdownStreamChunkSizes = [4, 18, 7, 32, 11, 54, 6, 23, 41, 9]
-const markdownIt = new MarkdownIt({
-  html: false,
-  linkify: true,
-  typographer: true
-})
-
-const demoContentParser: AiContentParser = {
-  parse: (content) => ({
-    type: 'html',
-    content: markdownIt.render(content)
-  })
+const DemoCitation = {
+  name: 'DemoCitation',
+  props: {
+    label: {
+      type: String,
+      required: true
+    },
+    title: {
+      type: String,
+      required: true
+    },
+    snippet: {
+      type: String,
+      default: ''
+    },
+    url: {
+      type: String,
+      default: ''
+    }
+  },
+  setup(props: { label: string; title: string; snippet: string; url: string }) {
+    return () =>
+      h(
+        'span',
+        {
+          class: 'demo-citation-wrap'
+        },
+        [
+          h(
+            props.url ? 'a' : 'button',
+            {
+              class: 'demo-citation',
+              href: props.url || undefined,
+              target: props.url ? '_blank' : undefined,
+              rel: props.url ? 'noreferrer' : undefined,
+              type: props.url ? undefined : 'button',
+              title: props.title
+            },
+            props.label
+          ),
+          h('span', { class: 'demo-citation-card', role: 'tooltip' }, [
+            h('strong', props.title),
+            props.snippet ? h('span', props.snippet) : null
+          ])
+        ]
+      )
+  }
 }
+
+const demoContentParser: AiContentParser = createMarkdownVNodeParser({
+  inlineWidgets: [
+    {
+      name: 'citation',
+      pattern: /\[\[critten\s+(\d+)\]\]/gi,
+      resolve(match, context) {
+        const index = Number(match[1])
+        const source = context.message?.sources?.find(
+          (item) => item.index === index || item.id === String(index)
+        )
+
+        return source
+          ? {
+              key: `citation:${index}`,
+              props: {
+                label: `[${index}]`,
+                title: source.title,
+                snippet: source.snippet ?? '',
+                url: source.url ?? ''
+              }
+            }
+          : null
+      },
+      render(props) {
+        return h(DemoCitation, {
+          label: String(props.label),
+          title: String(props.title),
+          snippet: String(props.snippet ?? ''),
+          url: String(props.url ?? '')
+        })
+      },
+      fallback(match) {
+        return `[${match[1]}]`
+      }
+    }
+  ]
+})
 
 const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -127,22 +202,22 @@ const sendDemoMessage = async ({
   setPhase('answering')
   const response = `Received: "${prompt}".\n\n${markdownExample}`
   const chunks = createMarkdownStreamChunks(response)
-
-  for (const [index, chunk] of chunks.entries()) {
-    await wait(markdownStreamDelaysMs[index % markdownStreamDelaysMs.length], signal)
-    append(chunk)
-  }
-
   update({
     sources: [
       {
         id: `source-${Date.now()}`,
+        index:1,
         title: 'AiChatSendContext',
         url: 'https://github.com/',
         snippet: 'Demo source metadata is attached through context.update().'
       }
     ]
   })
+  for (const [index, chunk] of chunks.entries()) {
+    await wait(markdownStreamDelaysMs[index % markdownStreamDelaysMs.length], signal)
+    append(chunk)
+  }
+  
 }
 
 const prefillComposer = () => {
@@ -255,6 +330,7 @@ const messageCount = computed(() => messages.value.length)
                   class="demo-message-text"
                   :content="context.message.content"
                   :parser="demoContentParser"
+                  :message="context.message"
                   :streaming="context.status === 'streaming'"
                 />
 

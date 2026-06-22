@@ -194,6 +194,71 @@
   border-radius: 8px;
 }
 
+.demo-citation-wrap {
+  position: relative;
+  display: inline-flex;
+  vertical-align: baseline;
+}
+
+.demo-citation {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  margin: 0 2px;
+  padding: 0 6px;
+  color: #1967d2;
+  background: #e8f0fe;
+  border: 1px solid #d2e3fc;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.demo-citation:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.demo-citation-card {
+  position: absolute;
+  z-index: 3;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  display: grid;
+  width: min(260px, 80vw);
+  gap: 4px;
+  padding: 10px;
+  color: #3c4043;
+  visibility: hidden;
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(60 64 67 / 18%);
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+}
+
+.demo-citation-card strong {
+  color: #202124;
+}
+
+.demo-citation-wrap:hover .demo-citation-card,
+.demo-citation-wrap:focus-within .demo-citation-card {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 .demo-message--error .demo-message-text {
   color: #b3261e;
   background: #fce8e6;
