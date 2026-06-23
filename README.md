@@ -9,7 +9,7 @@
 - Provider-neutral：不绑定任何模型服务或请求协议。
 - Headless-first：`AiChat` 只负责状态和 slot 编排。
 - 可替换内容解析：通过 `contentParser` 或 `AiContent :parser` 接入 parser。
-- 支持流式渲染：内容按稳定 block 和 live tail 渲染，减少图片闪烁和 DOM 重建。
+- 支持流式渲染：Markdown 推荐整段解析并交给 Vue keyed diff；普通 parser 可按 stable block 和 live tail 渲染。
 - 显式 CSS：包入口不自动引入样式，需要主动导入 preset。
 
 ## 安装
@@ -18,7 +18,8 @@
 npm install vue3-ai-chat vue
 ```
 
-如果需要在项目中使用完整 Markdown 解析器，可以自行安装，例如：
+推荐的 `createMarkdownVNodeParser()` 已内置 Markdown 解析能力。如果要编写自己的
+HTML string parser，可以自行安装解析器，例如：
 
 ```bash
 npm install markdown-it
@@ -28,8 +29,10 @@ npm install markdown-it
 
 ```vue
 <script setup lang="ts">
-import { AiChat, AiContent, markdownParser, type AiChatAdapter } from 'vue3-ai-chat'
+import { AiChat, AiContent, createMarkdownVNodeParser, type AiChatAdapter } from 'vue3-ai-chat'
 import 'vue3-ai-chat/base.css'
+
+const contentParser = createMarkdownVNodeParser()
 
 const adapter: AiChatAdapter = {
   async send({ append }) {
@@ -39,7 +42,7 @@ const adapter: AiChatAdapter = {
 </script>
 
 <template>
-  <AiChat :adapter="adapter" :content-parser="markdownParser">
+  <AiChat :adapter="adapter" :content-parser="contentParser">
     <template #header="{ messages, actions }">
       <button type="button" @click="actions.clear()">
         清空 {{ messages.length }}
@@ -55,7 +58,7 @@ const adapter: AiChatAdapter = {
         v-else
         class="assistant-message"
         :content="message.content"
-        :parser="markdownParser"
+        :parser="contentParser"
         :streaming="status === 'streaming'"
       />
 
@@ -90,13 +93,14 @@ const adapter: AiChatAdapter = {
 推荐使用 `contentParser` 给 `AiChat` 默认消息渲染器传入内容 parser：
 
 ```vue
-<AiChat :adapter="adapter" :content-parser="markdownParser" />
+<AiChat :adapter="adapter" :content-parser="contentParser" />
 ```
 
 自定义 parser 实现 `AiContentParser`：
 
 ```ts
 interface AiContentParser {
+  mode?: 'block' | 'document'
   parse: (content: string, context: AiContentParserContext) => AiContentParsed
 }
 ```
@@ -104,12 +108,14 @@ interface AiContentParser {
 内置 parser：
 
 ```ts
-import { markdownParser, plainTextParser } from 'vue3-ai-chat'
+import { createMarkdownVNodeParser, markdownParser, plainTextParser } from 'vue3-ai-chat'
 ```
 
 - `plainTextParser`：默认安全纯文本渲染。
-- `markdownParser`：轻量 Markdown 示例解析器，适合基础演示。
-- 更完整的 Markdown 能力建议接入 `markdown-it`、`mark-it` 等外部 parser。
+- `createMarkdownVNodeParser()`：推荐 Markdown parser。它整段解析 Markdown，输出 Vue vnode，
+  支持 inline Vue widget，并用顶层 vnode key 交给 Vue 做增量 patch。
+- `markdownParser`：轻量 HTML string Markdown 示例解析器，适合基础演示或兼容测试。
+- 自定义 HTML parser 可返回 `{ type: 'html' }`，自定义 Vue 组件渲染建议返回 `{ type: 'vnode' }`。
 
 ## AiContent
 
@@ -118,21 +124,9 @@ adapter、traces 或 actions。
 
 ```vue
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it'
-import { AiContent, type AiContentParser } from 'vue3-ai-chat'
+import { AiContent, createMarkdownVNodeParser } from 'vue3-ai-chat'
 
-const markdownIt = new MarkdownIt({
-  html: false,
-  linkify: true,
-  typographer: true
-})
-
-const parser: AiContentParser = {
-  parse: (content) => ({
-    type: 'html',
-    content: markdownIt.render(content)
-  })
-}
+const parser = createMarkdownVNodeParser()
 </script>
 
 <template>
@@ -144,7 +138,14 @@ const parser: AiContentParser = {
 </template>
 ```
 
-流式输出时，`AiContent` 会把内容拆成 stable blocks 和一个 live block：
+`AiContent` 支持两种 parser mode：
+
+- `document` mode：parser 接收完整 `content`。`createMarkdownVNodeParser()` 使用该模式，
+  适合 Markdown 和 Vue widget；每次流式更新会整段重新解析，DOM/组件复用交给 Vue keyed diff。
+- `block` mode：默认模式。`AiContent` 会把内容拆成 stable blocks 和一个 live block，
+  适合纯文本、简单 HTML string parser 或需要 block context 的自定义 parser。
+
+`block` mode 流式输出时：
 
 - 已完成 block 会保持稳定 key。
 - stable block 的解析结果会缓存。
@@ -189,7 +190,7 @@ const adapter: AiChatAdapter = {
 
 本仓库 demo 使用：
 
-- `markdown-it` 作为 demo 的 Markdown parser。
+- `createMarkdownVNodeParser()` 作为 demo 的推荐 Markdown parser，支持整段解析和 Vue citation widget。
 - `docs/markdown-example.md` 作为 mock response 内容来源。
 - `https://picsum.photos/200/300` 图片和链接测试流式媒体渲染。
 - 不规则 chunk size 和 delay 模拟模型“吐字”式流式输出。

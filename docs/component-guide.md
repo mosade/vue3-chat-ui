@@ -12,6 +12,7 @@ import {
   ChatComposer,
   ChatMessage,
   ChatMessageList,
+  createMarkdownVNodeParser,
   markdownParser,
   plainTextParser,
   useAutoScroll,
@@ -130,10 +131,16 @@ interface AiChatMessageSlotContext {
 推荐在自定义 message slot 中显式使用 `AiContent`：
 
 ```vue
+<script setup lang="ts">
+import { createMarkdownVNodeParser } from 'vue3-ai-chat'
+
+const contentParser = createMarkdownVNodeParser()
+</script>
+
 <template #message="{ message, status, actions }">
   <AiContent
     :content="message.content"
-    :parser="markdownParser"
+    :parser="contentParser"
     :streaming="status === 'streaming'"
   />
 
@@ -280,7 +287,7 @@ user 消息在发送和编辑保存后会被标记为 `done`。assistant 的 `re
 
 ## AiContent
 
-`AiContent` 是独立内容渲染组件。它只负责把原始字符串渲染成安全文本或 parser 返回的 HTML。
+`AiContent` 是独立内容渲染组件。它只负责把原始字符串渲染成安全文本、HTML 或 parser 返回的 Vue vnode。
 
 ### Props
 
@@ -292,7 +299,16 @@ user 消息在发送和编辑保存后会被标记为 `done`。assistant 的 `re
 
 ### 渲染策略
 
-`AiContent` 会调用 `createAiContentBlocks(content, { streaming })`，把内容拆成：
+`AiContent` 根据 parser 的 `mode` 选择渲染策略：
+
+- `document` mode：parser 接收完整 `content`。`createMarkdownVNodeParser()` 使用该模式，
+  适合 Markdown 和 inline Vue widget。它会整段调用 `markdown-it` 解析，再给顶层 vnode
+  添加稳定 key，由 Vue 的 keyed diff 复用 DOM 和组件实例。
+- `block` mode：默认模式。`AiContent` 调用 `createAiContentBlocks(content, { streaming })`，
+  把内容拆成 stable blocks 和 live block，适合纯文本、简单 HTML string parser，
+  或依赖 `blockId` / `stable` / `kind` context 的自定义 parser。
+
+`block` mode 会把内容拆成：
 
 - stable blocks：已完成内容块，解析结果会缓存。
 - live block：流式尾部内容，只更新这一块。
@@ -304,6 +320,7 @@ user 消息在发送和编辑保存后会被标记为 `done`。assistant 的 `re
 
 ```ts
 interface AiContentParser {
+  mode?: 'block' | 'document'
   parse: (content: string, context: AiContentParserContext) => AiContentParsed
 }
 
@@ -318,19 +335,28 @@ interface AiContentParserContext {
 type AiContentParsed =
   | { type: 'text'; content: string }
   | { type: 'html'; content: string }
+  | { type: 'vnode'; content: VNodeChild }
 ```
 
-接入 `markdown-it` 示例：
+推荐的 Markdown + Vue 组件路径：
+
+```ts
+import { createMarkdownVNodeParser } from 'vue3-ai-chat'
+
+export const parser = createMarkdownVNodeParser({
+  inlineWidgets: [
+    // 通过 pattern / resolve / render 把受控标记渲染成 Vue 组件。
+  ]
+})
+```
+
+HTML string parser 示例：
 
 ```ts
 import MarkdownIt from 'markdown-it'
 import type { AiContentParser } from 'vue3-ai-chat'
 
-const markdownIt = new MarkdownIt({
-  html: false,
-  linkify: true,
-  typographer: true
-})
+const markdownIt = new MarkdownIt({ html: false, linkify: true, typographer: true })
 
 export const parser: AiContentParser = {
   parse: (content) => ({
