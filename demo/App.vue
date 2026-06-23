@@ -296,6 +296,14 @@ const messageCount = computed(() => messages.value.length)
               </div>
               <div class="demo-header-actions">
                 <button
+                  class="demo-inline-button"
+                  type="button"
+                  data-demo-scroll-bottom
+                  @click="jumpToLatest()"
+                >
+                  Scroll to bottom
+                </button>
+                <button
                   v-if="showJumpToLatest"
                   class="demo-inline-button"
                   type="button"

@@ -1,6 +1,6 @@
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAutoScroll } from './useAutoScroll'
 
 const setScrollMetrics = (
@@ -23,6 +23,25 @@ const setScrollMetrics = (
 }
 
 describe('useAutoScroll', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    let rafTime = performance.now()
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) =>
+      window.setTimeout(() => {
+        rafTime += 16
+        callback(rafTime)
+      }, 16)
+    )
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((handle) => {
+      window.clearTimeout(handle)
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
   it('follows updates near the bottom and exposes jump state when reading older content', async () => {
     const Harness = defineComponent({
       setup() {
@@ -65,6 +84,8 @@ describe('useAutoScroll', () => {
     await nextTick()
     await nextTick()
 
+    await vi.runAllTimersAsync()
+
     expect(viewport.scrollTop).toBe(200)
     expect(wrapper.find('.jump').exists()).toBe(false)
 
@@ -81,8 +102,176 @@ describe('useAutoScroll', () => {
     expect(wrapper.find('.jump').exists()).toBe(true)
 
     await wrapper.find('.jump').trigger('click')
+    await vi.runAllTimersAsync()
 
     expect(viewport.scrollTop).toBe(300)
     expect(wrapper.find('.jump').exists()).toBe(false)
+  })
+
+  it('keeps following smooth updates while scrollTop is between animated positions', async () => {
+    const Harness = defineComponent({
+      setup() {
+        const content = ref('one')
+        const autoScroll = ref(true)
+        const scroll = useAutoScroll({
+          autoScroll,
+          watchSource: () => content.value
+        })
+
+        return { content, ...scroll }
+      },
+      render() {
+        return h('div', [
+          h(
+            'section',
+            {
+              ref: 'viewportRef',
+              class: 'viewport',
+              onScroll: this.updateScrollState
+            },
+            this.content
+          ),
+          this.showJumpToLatest
+            ? h('button', { class: 'jump', onClick: this.jumpToLatest }, 'Latest')
+            : null
+        ])
+      }
+    })
+
+    const wrapper = mount(Harness)
+    const viewport = wrapper.find('.viewport').element as HTMLElement
+
+    setScrollMetrics(viewport, {
+      scrollTop: 96,
+      scrollHeight: 200,
+      clientHeight: 100
+    })
+
+    const scrollTo = vi.fn()
+    viewport.scrollTo = scrollTo
+
+    wrapper.vm.content = 'two'
+    await nextTick()
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(16)
+
+    expect(scrollTo).not.toHaveBeenCalled()
+    expect(viewport.scrollTop).toBeGreaterThan(96)
+    expect(viewport.scrollTop).toBeLessThan(200)
+
+    await wrapper.find('.viewport').trigger('scroll')
+    await vi.advanceTimersByTimeAsync(16)
+
+    expect(viewport.scrollTop).toBeGreaterThan(120)
+
+    setScrollMetrics(viewport, {
+      scrollTop: 120,
+      scrollHeight: 240,
+      clientHeight: 100
+    })
+
+    wrapper.vm.content = 'three'
+    await nextTick()
+    await nextTick()
+
+    await vi.runAllTimersAsync()
+
+    expect(scrollTo).not.toHaveBeenCalled()
+    expect(viewport.scrollTop).toBe(240)
+    expect(wrapper.find('.jump').exists()).toBe(false)
+  })
+
+  it('retargets smooth scrolling without a large jump during streaming updates', async () => {
+    const Harness = defineComponent({
+      setup() {
+        const content = ref('one')
+        const autoScroll = ref(true)
+        const scroll = useAutoScroll({
+          autoScroll,
+          watchSource: () => content.value
+        })
+
+        return { content, ...scroll }
+      },
+      render() {
+        return h('section', {
+          ref: 'viewportRef',
+          class: 'viewport',
+          onScroll: this.updateScrollState
+        }, this.content)
+      }
+    })
+
+    const wrapper = mount(Harness)
+    const viewport = wrapper.find('.viewport').element as HTMLElement
+
+    setScrollMetrics(viewport, {
+      scrollTop: 96,
+      scrollHeight: 200,
+      clientHeight: 100
+    })
+
+    wrapper.vm.content = 'two'
+    await nextTick()
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(16)
+
+    const beforeRetarget = viewport.scrollTop
+
+    setScrollMetrics(viewport, {
+      scrollTop: beforeRetarget,
+      scrollHeight: 240,
+      clientHeight: 100
+    })
+
+    wrapper.vm.content = 'three'
+    await nextTick()
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(16)
+
+    expect(viewport.scrollTop - beforeRetarget).toBeLessThan(20)
+  })
+
+  it('disables css smooth behavior while running the javascript scroll animation', async () => {
+    const Harness = defineComponent({
+      setup() {
+        const content = ref('one')
+        const autoScroll = ref(true)
+        const scroll = useAutoScroll({
+          autoScroll,
+          watchSource: () => content.value
+        })
+
+        return { content, ...scroll }
+      },
+      render() {
+        return h('section', {
+          ref: 'viewportRef',
+          class: 'viewport',
+          onScroll: this.updateScrollState
+        }, this.content)
+      }
+    })
+
+    const wrapper = mount(Harness)
+    const viewport = wrapper.find('.viewport').element as HTMLElement
+    viewport.style.scrollBehavior = 'smooth'
+
+    setScrollMetrics(viewport, {
+      scrollTop: 96,
+      scrollHeight: 200,
+      clientHeight: 100
+    })
+
+    wrapper.vm.content = 'two'
+    await nextTick()
+    await nextTick()
+
+    expect(viewport.style.scrollBehavior).toBe('auto')
+
+    await vi.runAllTimersAsync()
+
+    expect(viewport.scrollTop).toBe(200)
+    expect(viewport.style.scrollBehavior).toBe('smooth')
   })
 })

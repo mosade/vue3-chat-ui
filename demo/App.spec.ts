@@ -6,6 +6,21 @@ import { nextTick } from 'vue'
 import App from './App.vue'
 import ShadcnDemo from './ShadcnDemo.vue'
 
+const mockScrollAnimation = () => {
+  vi.useFakeTimers()
+  let rafTime = performance.now()
+
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) =>
+    window.setTimeout(() => {
+      rafTime += 16
+      callback(rafTime)
+    }, 16)
+  )
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((handle) => {
+    window.clearTimeout(handle)
+  })
+}
+
 describe('demo App', () => {
   beforeEach(() => {
     Object.assign(navigator, {
@@ -16,6 +31,7 @@ describe('demo App', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
@@ -30,6 +46,31 @@ describe('demo App', () => {
 
     expect(wrapper.text()).toContain('DeepSeek Assistant')
     expect(wrapper.find('.deepseek-demo .ai-chat').exists()).toBe(true)
+  })
+
+  it('scrolls the default demo messages to the bottom', async () => {
+    mockScrollAnimation()
+    const wrapper = mount(App)
+    const viewport = wrapper.find('.ai-chat__messages').element
+
+    Object.defineProperty(viewport, 'scrollTop', {
+      configurable: true,
+      writable: true,
+      value: 20
+    })
+    Object.defineProperty(viewport, 'scrollHeight', {
+      configurable: true,
+      value: 300
+    })
+    Object.defineProperty(viewport, 'clientHeight', {
+      configurable: true,
+      value: 100
+    })
+
+    await wrapper.find('[data-demo-scroll-bottom]').trigger('click')
+    await vi.runAllTimersAsync()
+
+    expect(viewport.scrollTop).toBe(300)
   })
 
   it('renders the DeepSeek assistant product controls and prompt suggestions', async () => {
@@ -178,6 +219,7 @@ describe('demo App', () => {
   })
 
   it('shows a DeepSeek jump-to-bottom button when reading older messages', async () => {
+    mockScrollAnimation()
     const wrapper = mount(ShadcnDemo)
     const viewport = wrapper.find('.ai-chat__messages').element
 
@@ -203,6 +245,7 @@ describe('demo App', () => {
     expect(latest.attributes('aria-label')).toBe('Scroll to latest message')
 
     await latest.trigger('click')
+    await vi.runAllTimersAsync()
 
     expect(viewport.scrollTop).toBe(300)
   })

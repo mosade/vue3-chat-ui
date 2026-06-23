@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import ChatMessageList from './ChatMessageList.vue'
 import type { AiChatMessage } from '../types'
@@ -28,7 +28,27 @@ const setScrollMetrics = (
   })
 }
 
+const mockScrollAnimation = () => {
+  vi.useFakeTimers()
+  let rafTime = performance.now()
+
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) =>
+    window.setTimeout(() => {
+      rafTime += 16
+      callback(rafTime)
+    }, 16)
+  )
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((handle) => {
+    window.clearTimeout(handle)
+  })
+}
+
 describe('ChatMessageList', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
   it('renders empty and message slots as a standalone list building block', () => {
     const empty = mount(ChatMessageList, {
       props: { messages: [] },
@@ -67,6 +87,7 @@ describe('ChatMessageList', () => {
   })
 
   it('auto-scrolls when the user is already near the bottom', async () => {
+    mockScrollAnimation()
     const wrapper = mount(ChatMessageList, {
       props: { messages }
     })
@@ -82,12 +103,14 @@ describe('ChatMessageList', () => {
       messages: [...messages, { id: 'a2', role: 'assistant', content: 'New', status: 'done' }]
     })
     await nextTick()
+    await vi.runAllTimersAsync()
 
     expect(viewport.scrollTop).toBe(200)
     expect(wrapper.find('[aria-label="Jump to latest message"]').exists()).toBe(false)
   })
 
   it('does not auto-scroll when the user is reading older messages', async () => {
+    mockScrollAnimation()
     const wrapper = mount(ChatMessageList, {
       props: { messages }
     })
@@ -108,6 +131,7 @@ describe('ChatMessageList', () => {
     expect(wrapper.find('[aria-label="Jump to latest message"]').exists()).toBe(true)
 
     await wrapper.find('[aria-label="Jump to latest message"]').trigger('click')
+    await vi.runAllTimersAsync()
 
     expect(viewport.scrollTop).toBe(300)
     expect(wrapper.find('[aria-label="Jump to latest message"]').exists()).toBe(false)

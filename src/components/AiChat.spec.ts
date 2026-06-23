@@ -1,11 +1,26 @@
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import AiChat from './AiChat.vue'
 import AiContent from './AiContent.vue'
 import type { AiChatMessage } from '../types'
 
 const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0))
+const mockScrollAnimation = () => {
+  vi.useFakeTimers()
+  let rafTime = performance.now()
+
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) =>
+    window.setTimeout(() => {
+      rafTime += 16
+      callback(rafTime)
+    }, 16)
+  )
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((handle) => {
+    window.clearTimeout(handle)
+  })
+}
+
 const setScrollMetrics = (
   element: Element,
   metrics: { scrollTop: number; scrollHeight: number; clientHeight: number }
@@ -32,6 +47,11 @@ describe('AiChat', () => {
         writeText: vi.fn()
       }
     })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('renders the default empty state and default message fallback', () => {
@@ -244,6 +264,7 @@ describe('AiChat', () => {
   })
 
   it('auto-scrolls streamed content while the user is near the bottom', async () => {
+    mockScrollAnimation()
     const wrapper = mount(AiChat, {
       props: {
         messages: [
@@ -272,12 +293,14 @@ describe('AiChat', () => {
       ]
     })
     await nextTick()
+    await vi.runAllTimersAsync()
 
     expect(viewport.scrollTop).toBe(200)
     expect(wrapper.find('.jump').exists()).toBe(false)
   })
 
   it('does not auto-scroll streamed content when the user is reading older messages', async () => {
+    mockScrollAnimation()
     const wrapper = mount(AiChat, {
       props: {
         messages: [
@@ -315,6 +338,7 @@ describe('AiChat', () => {
     expect(wrapper.find('.jump').exists()).toBe(true)
 
     await wrapper.find('.jump').trigger('click')
+    await vi.runAllTimersAsync()
 
     expect(viewport.scrollTop).toBe(300)
     expect(wrapper.find('.jump').exists()).toBe(false)
