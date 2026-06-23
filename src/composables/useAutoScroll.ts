@@ -20,17 +20,23 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
   const isNearBottom = ref(true)
   const showJumpToLatest = ref(false)
   const bottomThreshold = options.bottomThreshold ?? 48
+  const shouldFollowLatest = ref(true)
   const isProgrammaticSmoothScroll = ref(false)
   let hasUserScrollIntent = false
   let scrollAnimationFrame: number | null = null
   let scrollAnimationTargetTop = 0
+  let scrollAnimationVelocity = 0
   let scrollAnimationElement: HTMLElement | null = null
   let previousInlineScrollBehavior: string | null = null
-  const scrollAnimationFollowRatio = 0.22
-  const scrollAnimationMaxStep = 18
+  const scrollAnimationSpring = 0.055
+  const scrollAnimationDamping = 0.82
+  const scrollAnimationMaxVelocity = 14
 
   const getIsNearBottom = (element: HTMLElement) =>
     element.scrollHeight - element.scrollTop - element.clientHeight <= bottomThreshold
+
+  const getScrollBottom = (element: HTMLElement) =>
+    Math.max(element.scrollHeight - element.clientHeight, 0)
 
   const stopScrollAnimation = () => {
     if (scrollAnimationFrame === null) {
@@ -44,6 +50,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
 
     window.cancelAnimationFrame(scrollAnimationFrame)
     scrollAnimationFrame = null
+    scrollAnimationVelocity = 0
 
     if (scrollAnimationElement && previousInlineScrollBehavior !== null) {
       scrollAnimationElement.style.scrollBehavior = previousInlineScrollBehavior
@@ -63,7 +70,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
       element.style.scrollBehavior = 'auto'
     }
 
-    scrollAnimationTargetTop = element.scrollHeight
+    scrollAnimationTargetTop = getScrollBottom(element)
 
     if (scrollAnimationFrame !== null) {
       return
@@ -75,17 +82,24 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
       if (Math.abs(distance) <= 1) {
         element.scrollTop = scrollAnimationTargetTop
         scrollAnimationFrame = null
-        isProgrammaticSmoothScroll.value = false
+        scrollAnimationVelocity = 0
+        isProgrammaticSmoothScroll.value = shouldFollowLatest.value
         stopScrollAnimation()
         return
       }
 
-      const nextStep = Math.min(
-        Math.max(Math.abs(distance) * scrollAnimationFollowRatio, 1),
-        scrollAnimationMaxStep
+      scrollAnimationVelocity =
+        (scrollAnimationVelocity + distance * scrollAnimationSpring) * scrollAnimationDamping
+      scrollAnimationVelocity = Math.sign(scrollAnimationVelocity) * Math.min(
+        Math.abs(scrollAnimationVelocity),
+        scrollAnimationMaxVelocity
       )
 
-      element.scrollTop += Math.sign(distance) * nextStep
+      if (Math.abs(scrollAnimationVelocity) < 0.5) {
+        scrollAnimationVelocity = Math.sign(distance) * 0.5
+      }
+
+      element.scrollTop += scrollAnimationVelocity
       scrollAnimationFrame = window.requestAnimationFrame(tick)
     }
 
@@ -110,7 +124,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
         return
       }
 
-      isProgrammaticSmoothScroll.value = false
+      isProgrammaticSmoothScroll.value = shouldFollowLatest.value
       hasUserScrollIntent = false
       isNearBottom.value = true
       showJumpToLatest.value = false
@@ -124,6 +138,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
     }
 
     isProgrammaticSmoothScroll.value = false
+    shouldFollowLatest.value = false
     stopScrollAnimation()
     isNearBottom.value = false
     showJumpToLatest.value = !isNearBottom.value
@@ -137,6 +152,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
     }
 
     hasUserScrollIntent = false
+    shouldFollowLatest.value = true
     const scrollBehavior = options.scrollBehavior ?? 'smooth'
 
     if (scrollBehavior === 'smooth') {
@@ -146,13 +162,13 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
       stopScrollAnimation()
       isProgrammaticSmoothScroll.value = false
       element.scrollTo({
-        top: element.scrollHeight,
+        top: getScrollBottom(element),
         behavior: scrollBehavior
       })
     } else {
       stopScrollAnimation()
       isProgrammaticSmoothScroll.value = false
-      element.scrollTop = element.scrollHeight
+      element.scrollTop = getScrollBottom(element)
     }
 
     isNearBottom.value = true
@@ -168,11 +184,13 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
         }
 
         const shouldScroll = viewportRef.value
-          ? isProgrammaticSmoothScroll.value || getIsNearBottom(viewportRef.value)
+          ? (isProgrammaticSmoothScroll.value && !hasUserScrollIntent) ||
+            getIsNearBottom(viewportRef.value)
           : true
 
         if (!shouldScroll) {
           isProgrammaticSmoothScroll.value = false
+          shouldFollowLatest.value = false
           isNearBottom.value = false
           showJumpToLatest.value = true
           return

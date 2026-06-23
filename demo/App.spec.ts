@@ -70,7 +70,7 @@ describe('demo App', () => {
     await wrapper.find('[data-demo-scroll-bottom]').trigger('click')
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(300)
+    expect(viewport.scrollTop).toBe(200)
   })
 
   it('renders the DeepSeek assistant product controls and prompt suggestions', async () => {
@@ -247,7 +247,7 @@ describe('demo App', () => {
     await latest.trigger('click')
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(300)
+    expect(viewport.scrollTop).toBe(200)
   })
 
   it('renders provider errors from DeepSeek responses', async () => {

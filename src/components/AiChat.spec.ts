@@ -295,7 +295,7 @@ describe('AiChat', () => {
     await nextTick()
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(200)
+    expect(viewport.scrollTop).toBe(100)
     expect(wrapper.find('.jump').exists()).toBe(false)
   })
 
@@ -340,7 +340,7 @@ describe('AiChat', () => {
     await wrapper.find('.jump').trigger('click')
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(300)
+    expect(viewport.scrollTop).toBe(200)
     expect(wrapper.find('.jump').exists()).toBe(false)
   })
 

@@ -86,7 +86,7 @@ describe('useAutoScroll', () => {
 
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(200)
+    expect(viewport.scrollTop).toBe(100)
     expect(wrapper.find('.jump').exists()).toBe(false)
 
     setScrollMetrics(viewport, {
@@ -94,6 +94,7 @@ describe('useAutoScroll', () => {
       scrollHeight: 300,
       clientHeight: 100
     })
+    await wrapper.find('.viewport').trigger('wheel')
     wrapper.vm.content = 'three'
     await nextTick()
     await nextTick()
@@ -104,7 +105,7 @@ describe('useAutoScroll', () => {
     await wrapper.find('.jump').trigger('click')
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(300)
+    expect(viewport.scrollTop).toBe(200)
     expect(wrapper.find('.jump').exists()).toBe(false)
   })
 
@@ -158,11 +159,12 @@ describe('useAutoScroll', () => {
     expect(scrollTo).not.toHaveBeenCalled()
     expect(viewport.scrollTop).toBeGreaterThan(96)
     expect(viewport.scrollTop).toBeLessThan(200)
+    const beforeScrollEvent = viewport.scrollTop
 
     await wrapper.find('.viewport').trigger('scroll')
     await vi.advanceTimersByTimeAsync(16)
 
-    expect(viewport.scrollTop).toBeGreaterThan(120)
+    expect(viewport.scrollTop).toBeGreaterThan(beforeScrollEvent)
 
     setScrollMetrics(viewport, {
       scrollTop: 120,
@@ -177,7 +179,7 @@ describe('useAutoScroll', () => {
     await vi.runAllTimersAsync()
 
     expect(scrollTo).not.toHaveBeenCalled()
-    expect(viewport.scrollTop).toBe(240)
+    expect(viewport.scrollTop).toBe(140)
     expect(wrapper.find('.jump').exists()).toBe(false)
   })
 
@@ -232,6 +234,120 @@ describe('useAutoScroll', () => {
     expect(viewport.scrollTop - beforeRetarget).toBeLessThan(20)
   })
 
+  it('keeps scroll velocity moving when streaming content extends the target', async () => {
+    const Harness = defineComponent({
+      setup() {
+        const content = ref('one')
+        const autoScroll = ref(true)
+        const scroll = useAutoScroll({
+          autoScroll,
+          watchSource: () => content.value
+        })
+
+        return { content, ...scroll }
+      },
+      render() {
+        return h('section', {
+          ref: 'viewportRef',
+          class: 'viewport',
+          onScroll: this.updateScrollState
+        }, this.content)
+      }
+    })
+
+    const wrapper = mount(Harness)
+    const viewport = wrapper.find('.viewport').element as HTMLElement
+
+    setScrollMetrics(viewport, {
+      scrollTop: 112,
+      scrollHeight: 260,
+      clientHeight: 100
+    })
+
+    wrapper.vm.content = 'two'
+    await nextTick()
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(16)
+
+    const firstFrame = viewport.scrollTop
+    await vi.advanceTimersByTimeAsync(16)
+
+    const secondFrame = viewport.scrollTop
+    const stepBeforeRetarget = secondFrame - firstFrame
+
+    setScrollMetrics(viewport, {
+      scrollTop: secondFrame,
+      scrollHeight: 340,
+      clientHeight: 100
+    })
+
+    wrapper.vm.content = 'three'
+    await nextTick()
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(16)
+
+    const stepAfterRetarget = viewport.scrollTop - secondFrame
+
+    expect(stepAfterRetarget).toBeGreaterThan(stepBeforeRetarget)
+  })
+
+  it('continues auto-scrolling when a large chunk arrives after settling at the bottom', async () => {
+    const Harness = defineComponent({
+      setup() {
+        const content = ref('one')
+        const autoScroll = ref(true)
+        const scroll = useAutoScroll({
+          autoScroll,
+          watchSource: () => content.value
+        })
+
+        return { content, ...scroll }
+      },
+      render() {
+        return h('div', [
+          h('section', {
+            ref: 'viewportRef',
+            class: 'viewport',
+            onScroll: this.updateScrollState
+          }, this.content),
+          this.showJumpToLatest
+            ? h('button', { class: 'jump', onClick: this.jumpToLatest }, 'Latest')
+            : null
+        ])
+      }
+    })
+
+    const wrapper = mount(Harness)
+    const viewport = wrapper.find('.viewport').element as HTMLElement
+
+    setScrollMetrics(viewport, {
+      scrollTop: 96,
+      scrollHeight: 200,
+      clientHeight: 100
+    })
+
+    wrapper.vm.content = 'two'
+    await nextTick()
+    await nextTick()
+    await vi.runAllTimersAsync()
+
+    expect(viewport.scrollTop).toBe(100)
+
+    setScrollMetrics(viewport, {
+      scrollTop: 100,
+      scrollHeight: 620,
+      clientHeight: 100
+    })
+
+    wrapper.vm.content = 'large chunk'
+    await nextTick()
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(16)
+
+    expect(viewport.scrollTop).toBeGreaterThan(100)
+    expect(wrapper.find('.jump').exists()).toBe(false)
+  })
+
   it('disables css smooth behavior while running the javascript scroll animation', async () => {
     const Harness = defineComponent({
       setup() {
@@ -271,7 +387,7 @@ describe('useAutoScroll', () => {
 
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(200)
+    expect(viewport.scrollTop).toBe(100)
     expect(viewport.style.scrollBehavior).toBe('smooth')
   })
 })

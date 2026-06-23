@@ -105,7 +105,7 @@ describe('ChatMessageList', () => {
     await nextTick()
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(200)
+    expect(viewport.scrollTop).toBe(100)
     expect(wrapper.find('[aria-label="Jump to latest message"]').exists()).toBe(false)
   })
 
@@ -133,7 +133,7 @@ describe('ChatMessageList', () => {
     await wrapper.find('[aria-label="Jump to latest message"]').trigger('click')
     await vi.runAllTimersAsync()
 
-    expect(viewport.scrollTop).toBe(300)
+    expect(viewport.scrollTop).toBe(200)
     expect(wrapper.find('[aria-label="Jump to latest message"]').exists()).toBe(false)
   })
 })
