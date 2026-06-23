@@ -28,9 +28,9 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
   let scrollAnimationVelocity = 0
   let scrollAnimationElement: HTMLElement | null = null
   let previousInlineScrollBehavior: string | null = null
-  const scrollAnimationSpring = 0.055
-  const scrollAnimationDamping = 0.82
-  const scrollAnimationMaxVelocity = 14
+  const scrollAnimationSpring = 0.035
+  const scrollAnimationDamping = 0.84
+  const scrollAnimationMaxVelocity = 9
 
   const getIsNearBottom = (element: HTMLElement) =>
     element.scrollHeight - element.scrollTop - element.clientHeight <= bottomThreshold
