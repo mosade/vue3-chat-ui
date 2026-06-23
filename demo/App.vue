@@ -138,24 +138,19 @@ const wait = (ms: number, signal: AbortSignal) =>
   })
 
 const createMarkdownStreamChunks = (content: string) =>
-  content
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean)
-    .flatMap((block, blockIndex) => {
-      const chunkedBlock: string[] = []
+  Array.from(
+    (function* () {
       let offset = 0
-      let chunkIndex = blockIndex
+      let chunkIndex = 0
 
-      while (offset < block.length) {
+      while (offset < content.length) {
         const size = markdownStreamChunkSizes[chunkIndex % markdownStreamChunkSizes.length]
-        chunkedBlock.push(block.slice(offset, offset + size))
+        yield content.slice(offset, offset + size)
         offset += size
         chunkIndex += 1
       }
-
-      return [...chunkedBlock, '\n\n']
-    })
+    })()
+  )
 
 const sendDemoMessage = async ({
   prompt,
@@ -206,7 +201,7 @@ const sendDemoMessage = async ({
     sources: [
       {
         id: `source-${Date.now()}`,
-        index:1,
+        index: 1,
         title: 'AiChatSendContext',
         url: 'https://github.com/',
         snippet: 'Demo source metadata is attached through context.update().'
@@ -217,7 +212,6 @@ const sendDemoMessage = async ({
     await wait(markdownStreamDelaysMs[index % markdownStreamDelaysMs.length], signal)
     append(chunk)
   }
-  
 }
 
 const prefillComposer = () => {

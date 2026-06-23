@@ -1,6 +1,6 @@
 import MarkdownIt from 'markdown-it'
 import type Token from 'markdown-it/lib/token.mjs'
-import { h, type VNodeChild } from 'vue'
+import { cloneVNode, h, isVNode, type VNodeChild } from 'vue'
 import type {
   AiContentInlineWidget,
   AiContentParser,
@@ -19,6 +19,16 @@ const defaultMarkdown = new MarkdownIt({
   linkify: true,
   breaks: true
 })
+
+const hashString = (value: string) => {
+  let hash = 5381n
+
+  for (const char of value) {
+    hash = (hash * 33n) ^ BigInt(char.codePointAt(0) ?? 0)
+  }
+
+  return BigInt.asUintN(64, hash).toString(16)
+}
 
 const clonePattern = (pattern: RegExp) => {
   const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`
@@ -298,15 +308,53 @@ const renderMarkdownTokens = (
   return root
 }
 
+const getTopLevelTokenKey = (token: Token, index: number) => {
+  const lineRange = token.map?.join(':') ?? 'line:none'
+  const identity = [
+    token.type,
+    token.tag,
+    token.markup,
+    lineRange,
+    token.content.slice(0, 80)
+  ].join('|')
+
+  return `md:${index}:${hashString(identity)}`
+}
+
+const keyTopLevelVNodes = (children: VNodeChild[], tokens: Token[]) => {
+  let tokenIndex = 0
+
+  return children.map((child, index) => {
+    if (!isVNode(child) || child.key != null) {
+      return child
+    }
+
+    while (tokens[tokenIndex]?.hidden) {
+      tokenIndex += 1
+    }
+
+    const token = tokens[tokenIndex]
+    tokenIndex += 1
+
+    return cloneVNode(child, {
+      key: token ? getTopLevelTokenKey(token, index) : `md:${index}:text`
+    })
+  })
+}
+
 export const createMarkdownVNodeParser = (
   options: CreateMarkdownVNodeParserOptions = {}
 ): AiContentParser => {
   const widgets = options.inlineWidgets ?? []
 
   return {
+    mode: 'document',
     parse: (content, context) => ({
       type: 'vnode',
-      content: renderMarkdownTokens(defaultMarkdown.parse(content, {}), widgets, context)
+      content: (() => {
+        const tokens = defaultMarkdown.parse(content, {})
+        return keyTopLevelVNodes(renderMarkdownTokens(tokens, widgets, context), tokens)
+      })()
     })
   }
 }

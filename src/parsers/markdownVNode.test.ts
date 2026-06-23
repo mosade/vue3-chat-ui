@@ -6,6 +6,33 @@ import { createMarkdownVNodeParser } from './markdownVNode'
 import type { AiChatSource } from '../types'
 
 describe('createMarkdownVNodeParser', () => {
+  it('parses the whole markdown document before rendering vnode content', () => {
+    const parser = createMarkdownVNodeParser()
+    const wrapper = mount(AiContent, {
+      props: {
+        content: '```ts\nconst a = 1\n\nconst b = 2\n```',
+        parser
+      }
+    })
+
+    expect(wrapper.findAll('pre')).toHaveLength(1)
+    expect(wrapper.find('code').text()).toContain('const a = 1\n\nconst b = 2')
+  })
+
+  it('assigns keys to top-level markdown vnodes', () => {
+    const parser = createMarkdownVNodeParser()
+    const parsed = parser.parse('First paragraph\n\nSecond paragraph', {
+      streaming: false
+    })
+
+    expect(parsed.type).toBe('vnode')
+    expect(Array.isArray(parsed.content)).toBe(true)
+
+    if (parsed.type === 'vnode' && Array.isArray(parsed.content)) {
+      expect(parsed.content.every((child) => typeof child === 'object' && child !== null && 'key' in child)).toBe(true)
+    }
+  })
+
   it('renders inline widgets inside markdown nodes', () => {
     const CitationChip = defineComponent({
       name: 'CitationChip',

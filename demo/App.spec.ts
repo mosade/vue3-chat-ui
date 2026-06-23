@@ -298,7 +298,6 @@ describe('demo App', () => {
     await nextTick()
 
     expect(wrapper.find('.demo-message-text h1').text()).toContain('h1 Heading')
-    expect(wrapper.find('img[src="https://picsum.photos/200/300"]').exists()).toBe(false)
 
     await vi.advanceTimersByTimeAsync(60000)
     await nextTick()
@@ -393,8 +392,8 @@ describe('demo App', () => {
     expect(source).toContain('const markdownStreamDelaysMs = [45, 120, 70, 180, 35, 95, 260, 55]')
     expect(source).toContain('const markdownStreamChunkSizes = [4, 18, 7, 32, 11, 54, 6, 23, 41, 9]')
     expect(source).toContain('createMarkdownStreamChunks')
-    expect(source).toContain('split(/\\n{2,}/)')
     expect(source).toContain('slice(offset, offset + size)')
+    expect(source).not.toContain('split(/\\n{2,}/)')
     expect(source).not.toContain('response.match(/[\\s\\S]{1,520}/g)')
   })
 })

@@ -71,17 +71,6 @@ export default defineComponent({
       return parsed
     }
 
-    const parsedBlocks = computed(() =>
-      blocks.value.map((block) => ({
-        block,
-        parsed: parseBlock(block)
-      }))
-    )
-
-    const rendersHtml = computed(() =>
-      parsedBlocks.value.some(({ parsed }) => parsed.type === 'html')
-    )
-
     const normalizeVNodeContent = (content: VNodeChild) => {
       if (content === null || content === undefined || typeof content === 'boolean') {
         return []
@@ -89,6 +78,39 @@ export default defineComponent({
 
       return Array.isArray(content) ? content : [content]
     }
+
+    const documentParsed = computed(() => {
+      if (props.parser.mode !== 'document') {
+        return null
+      }
+
+      return props.parser.parse(props.content, {
+        streaming: props.streaming,
+        blockId: 'document',
+        stable: !props.streaming,
+        kind: 'html',
+        message: props.message
+      })
+    })
+
+    const parsedBlocks = computed(() => {
+      if (documentParsed.value) {
+        return []
+      }
+
+      return blocks.value.map((block) => ({
+        block,
+        parsed: parseBlock(block)
+      }))
+    })
+
+    const rendersHtml = computed(() => {
+      if (documentParsed.value) {
+        return documentParsed.value.type === 'html'
+      }
+
+      return parsedBlocks.value.some(({ parsed }) => parsed.type === 'html')
+    })
 
     const renderBlock = ({ block, parsed }: { block: AiContentBlock; parsed: AiContentParsed }) => {
       const children =
@@ -120,7 +142,13 @@ export default defineComponent({
           class: ['ai-content', rendersHtml.value ? 'ai-content--html' : ''],
           'data-streaming': props.streaming ? 'true' : 'false'
         },
-        parsedBlocks.value.map(renderBlock)
+        documentParsed.value
+          ? documentParsed.value.type === 'html'
+            ? [h('span', { class: 'ai-content__html', innerHTML: documentParsed.value.content })]
+            : documentParsed.value.type === 'vnode'
+              ? normalizeVNodeContent(documentParsed.value.content)
+              : documentParsed.value.content
+          : parsedBlocks.value.map(renderBlock)
       )
   }
 })

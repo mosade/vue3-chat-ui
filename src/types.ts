@@ -46,6 +46,7 @@ export interface AiContentParserContext {
 }
 
 export interface AiContentParser {
+  mode?: 'block' | 'document'
   parse: (content: string, context: AiContentParserContext) => AiContentParsed
 }
 
